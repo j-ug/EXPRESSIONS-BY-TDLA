@@ -33,22 +33,41 @@ export const HeroEntry: React.FC<HeroEntryProps> = ({ scrollProgress, onEnterGal
         </div>
 
         {/* Hero Title */}
-        <div className="font-serif text-4xl sm:text-6xl md:text-7xl font-normal text-[#2d1f14] tracking-tight leading-[1.1] mb-4 flex justify-center flex-wrap">
-          {"Dr. G. Ophylia Vinodhini".split("").map((letter, i) => (
-            <motion.span
-              key={i}
-              initial={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
-              animate={{
-                opacity: Math.max(0, 1 - scrollProgress * 20),
-                x: scrollProgress * (Math.random() - 0.5) * 1000,
-                y: scrollProgress * (Math.random() - 0.5) * 1000,
-                rotate: scrollProgress * 720,
-              }}
-              className="inline-block"
-            >
-              {letter === " " ? "\u00A0" : letter}
-            </motion.span>
-          ))}
+        <div className="font-serif text-4xl sm:text-6xl md:text-7xl font-normal text-[#2d1f14] tracking-tight leading-[1.1] mb-4 flex flex-col items-center">
+          <div className="flex justify-center flex-wrap">
+            {"Dr. G. Ophylia".split("").map((letter, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
+                animate={{
+                  opacity: Math.max(0, 1 - scrollProgress * 20),
+                  x: scrollProgress * (Math.random() - 0.5) * 1000,
+                  y: scrollProgress * (Math.random() - 0.5) * 1000,
+                  rotate: scrollProgress * 720,
+                }}
+                className="inline-block"
+              >
+                {letter === " " ? "\u00A0" : letter}
+              </motion.span>
+            ))}
+          </div>
+          <div className="flex justify-center flex-wrap">
+            {"Vinodhini".split("").map((letter, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 1, x: 0, y: 0, rotate: 0 }}
+                animate={{
+                  opacity: Math.max(0, 1 - scrollProgress * 20),
+                  x: scrollProgress * (Math.random() - 0.5) * 1000,
+                  y: scrollProgress * (Math.random() - 0.5) * 1000,
+                  rotate: scrollProgress * 720,
+                }}
+                className="inline-block"
+              >
+                {letter === " " ? "\u00A0" : letter}
+              </motion.span>
+            ))}
+          </div>
         </div>
 
         {/* Subline */}

@@ -319,9 +319,10 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
             {isEditing && (
               <EditArtworkModal
                 artwork={artwork}
+                isOpen={isEditing}
                 onClose={() => setIsEditing(false)}
-                onUpdate={() => {
-                  if (onUpdateArtwork) onUpdateArtwork(artwork); // Simplification, should re-fetch
+                onSave={(updated) => {
+                  if (onUpdateArtwork) onUpdateArtwork(updated);
                 }}
               />
             )}

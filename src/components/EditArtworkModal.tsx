@@ -1,40 +1,343 @@
 import React, { useState } from 'react';
-import { BotanicalArtwork } from '../types';
-import { updateArtwork } from '../lib/artworks';
+import { X, Upload, Check, Layers, Sparkles } from 'lucide-react';
+import { BotanicalArtwork, FrameShape } from '../types';
 
 interface EditArtworkModalProps {
   artwork: BotanicalArtwork;
+  isOpen: boolean;
   onClose: () => void;
-  onUpdate: () => void;
+  onSave: (updated: BotanicalArtwork) => void;
 }
 
-export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({ artwork, onClose, onUpdate }) => {
-  const [formData, setFormData] = useState<BotanicalArtwork>(artwork);
+const COLOR_PRESETS = [
+  { name: 'Forest Moss', color: '#608050' },
+  { name: 'Kaveri Lotus', color: '#b86b77' },
+  { name: 'Palmyra Amber', color: '#c29b38' },
+  { name: 'Temple Teal', color: '#3d7a6b' },
+  { name: 'Terracotta Scarlet', color: '#cf5a3c' },
+  { name: 'Sandalwood Gold', color: '#d49b4b' },
+  { name: 'Y2K Neon Pink', color: '#ff00ff' },
+  { name: 'Y2K Neon Cyan', color: '#00ffff' },
+];
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
+  artwork,
+  isOpen,
+  onClose,
+  onSave,
+}) => {
+  const [title, setTitle] = useState(artwork.title || '');
+  const [tamilTitle, setTamilTitle] = useState(artwork.tamilTitle || '');
+  const [price, setPrice] = useState(artwork.price || '₹18,500');
+  const [medium, setMedium] = useState(artwork.medium || '');
+  const [dimensions, setDimensions] = useState(artwork.dimensions || '70 × 55 cm');
+  const [year, setYear] = useState(artwork.year || '2024');
+  const [frameShape, setFrameShape] = useState<FrameShape>(artwork.frameShape || 'rectangle');
+  const [biasLightColor, setBiasLightColor] = useState(artwork.biasLightColor || '#608050');
+  const [biasLightIntensity, setBiasLightIntensity] = useState<number>(artwork.biasLightIntensity || 2.0);
+  const [customImageData, setCustomImageData] = useState<string | undefined>(artwork.customImageData);
+  const [description, setDescription] = useState(artwork.description || '');
+  const [inspiration, setInspiration] = useState(artwork.inspiration || '');
+  const [botanicalSpeciesStr, setBotanicalSpeciesStr] = useState((artwork.botanicalSpecies || []).join(', '));
+  const [textureTheme, setTextureTheme] = useState(artwork.textureTheme || 'peepal_sacred');
+  const [error, setError] = useState<string | null>(null);
+
+  if (!isOpen) return null;
+
+  const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      setError('Please select a valid image file (PNG, JPG, WebP).');
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      if (evt.target?.result) {
+        setCustomImageData(evt.target.result as string);
+        setTextureTheme('custom');
+        setError(null);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    await updateArtwork(formData.id, formData);
-    onUpdate();
+    if (!title.trim()) {
+      setError('Please provide a title for the canvas.');
+      return;
+    }
+
+    const speciesArray = botanicalSpeciesStr
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0);
+
+    const updatedArt: BotanicalArtwork = {
+      ...artwork,
+      title: title.trim(),
+      tamilTitle: tamilTitle.trim() || undefined,
+      botanicalSpecies: speciesArray.length > 0 ? speciesArray : ['Pressed indigenous flora'],
+      medium: medium.trim() || 'Pressed botanical flora on handmade paper',
+      dimensions: dimensions.trim() || '70 × 55 cm',
+      year: year.trim() || '2024',
+      price: price.trim() || '₹18,500',
+      frameShape,
+      biasLightColor,
+      biasLightIntensity: Number(biasLightIntensity) || 2.0,
+      description: description.trim() || 'Botanical composition on paper.',
+      inspiration: inspiration.trim() || 'Curated botanical specimen.',
+      textureTheme,
+      customImageData,
+    };
+
+    onSave(updatedArt);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg w-full max-w-lg">
-        <h2 className="text-xl font-bold mb-4">Edit Artwork</h2>
-        <input name="title" value={formData.title} onChange={handleChange} className="w-full mb-2 p-2 border" placeholder="Title" />
-        <textarea name="description" value={formData.description} onChange={handleChange} className="w-full mb-2 p-2 border" placeholder="Description" />
-        <input name="price" value={formData.price || ''} onChange={handleChange} className="w-full mb-2 p-2 border" placeholder="Price" />
-        <input name="inspiration" value={formData.inspiration} onChange={handleChange} className="w-full mb-2 p-2 border" placeholder="Inspiration" />
-        <div className="flex justify-end gap-2">
-          <button type="button" onClick={onClose} className="px-4 py-2 bg-gray-200 rounded">Cancel</button>
-          <button type="submit" className="px-4 py-2 bg-blue-500 text-white rounded">Save</button>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#21160e]/70 backdrop-blur-md animate-fade-in overflow-y-auto">
+      <div className="relative w-full max-w-2xl bg-[#fffdf9] border border-[#ded0be] rounded-3xl p-6 sm:p-8 shadow-2xl overflow-hidden my-auto max-h-[92vh] flex flex-col text-[#2d1f14]">
+        {/* Close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-5 right-5 p-2 rounded-full bg-[#f5ece0] hover:bg-[#ede0ce] text-[#5e4530] hover:text-[#2d1f14] transition-all cursor-pointer z-10"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Header */}
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-[11px] font-mono uppercase tracking-widest text-[#78573a]">
+            Admin Suite • Edit All Canvas Details
+          </span>
         </div>
-      </form>
+
+        <h2 className="font-serif text-2xl sm:text-3xl text-[#2d1f14] tracking-wide mb-1">
+          Edit Canvas Metadata
+        </h2>
+        <p className="text-xs text-[#6e543f] mb-4">
+          ID: {artwork.id}
+        </p>
+
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-[#fdf1f1] border border-[#f5c6c6] text-xs text-[#a33232]">
+            {error}
+          </div>
+        )}
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto pr-1 flex-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Artwork Title *
+              </label>
+              <input
+                type="text"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Tamil Title
+              </label>
+              <input
+                type="text"
+                value={tamilTitle}
+                onChange={(e) => setTamilTitle(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Price / Value
+              </label>
+              <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Creation Year
+              </label>
+              <input
+                type="text"
+                value={year}
+                onChange={(e) => setYear(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Medium & Materials
+              </label>
+              <input
+                type="text"
+                value={medium}
+                onChange={(e) => setMedium(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Dimensions
+              </label>
+              <input
+                type="text"
+                value={dimensions}
+                onChange={(e) => setDimensions(e.target.value)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Botanical Species (Comma Separated)
+              </label>
+              <input
+                type="text"
+                value={botanicalSpeciesStr}
+                onChange={(e) => setBotanicalSpeciesStr(e.target.value)}
+                placeholder="Ficus religiosa, Nelumbo nucifera"
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              />
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                Frame Molding Shape
+              </label>
+              <select
+                value={frameShape}
+                onChange={(e) => setFrameShape(e.target.value as FrameShape)}
+                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+              >
+                <option value="rectangle">Rectangle Frame</option>
+                <option value="square">Square Mount</option>
+                <option value="circular">Circular Tondo Frame</option>
+                <option value="arched">Cathedral Arched Vault</option>
+                <option value="leaf">Organic Leaf Frame</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Bias Light Color */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1.5 flex items-center justify-between">
+              <span>Halo / Rim Light Color</span>
+              <span className="font-mono text-[10px] text-[#8c6d53]">{biasLightColor}</span>
+            </label>
+            <div className="flex items-center gap-2 flex-wrap">
+              {COLOR_PRESETS.map((p) => (
+                <button
+                  key={p.color}
+                  type="button"
+                  onClick={() => setBiasLightColor(p.color)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] border transition-all cursor-pointer ${
+                    biasLightColor === p.color
+                      ? 'bg-[#f5ecdf] border-[#85582f] text-[#2d1f14] font-semibold'
+                      : 'bg-[#fffefc] border-[#dfd2c0] text-[#6b5038]'
+                  }`}
+                >
+                  <span className="w-3 h-3 rounded-full" style={{ backgroundColor: p.color }} />
+                  <span>{p.name}</span>
+                </button>
+              ))}
+              <input
+                type="color"
+                value={biasLightColor}
+                onChange={(e) => setBiasLightColor(e.target.value)}
+                className="w-7 h-7 rounded border border-[#dfd2c0] cursor-pointer p-0"
+              />
+            </div>
+          </div>
+
+          {/* Photo / Custom Image */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+              Canvas Image / Specimen Photo
+            </label>
+            <div className="flex items-center gap-3">
+              <label className="flex items-center gap-2 px-3 py-2 rounded-xl bg-[#f5ecdf] hover:bg-[#ede0ce] border border-[#dfd2c0] text-xs text-[#5e4530] font-medium cursor-pointer transition-colors">
+                <Upload className="w-3.5 h-3.5" />
+                <span>Upload New Image</span>
+                <input type="file" accept="image/*" onChange={handleImageFile} className="hidden" />
+              </label>
+              {customImageData && (
+                <div className="flex items-center gap-2">
+                  <img
+                    src={customImageData}
+                    alt="Preview"
+                    className="w-10 h-10 object-cover rounded-lg border border-[#dfd2c0]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setCustomImageData(undefined)}
+                    className="text-[11px] text-[#a33232] hover:underline cursor-pointer"
+                  >
+                    Remove custom image
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+              Artwork Description
+            </label>
+            <textarea
+              rows={2}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f] resize-none"
+            />
+          </div>
+
+          {/* Inspiration */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+              Inspiration
+            </label>
+            <textarea
+              rows={2}
+              value={inspiration}
+              onChange={(e) => setInspiration(e.target.value)}
+              className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f] resize-none"
+            />
+          </div>
+
+          <div className="pt-2">
+            <button
+              type="submit"
+              className="w-full py-2.5 rounded-xl bg-[#85582f] hover:bg-[#6e4622] text-[#fffefa] text-xs font-semibold shadow-md border border-[#9e6d3d] transition-all flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <Check className="w-4 h-4" />
+              <span>Save Canvas Changes</span>
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 };

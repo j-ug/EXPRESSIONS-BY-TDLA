@@ -1,4 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { ConfirmationModal } from './components/ConfirmationModal';
+import { AdminDashboard } from './components/AdminDashboard';
 import { Gallery3D } from './components/Gallery3D';
 import { Navigation } from './components/Navigation';
 import { HeroEntry } from './components/HeroEntry';
@@ -21,6 +23,9 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(() => getCurrentUser());
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [addCanvasModalOpen, setAddCanvasModalOpen] = useState(false);
+  const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
+  const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
 
   const [galleryState, setGalleryState] = useState<GalleryState>({
     scrollProgress: 0,
@@ -228,10 +233,13 @@ export default function App() {
     }, 400);
   };
 
-  const handleDeleteCurrentArtwork = async () => {
+  const handleDeleteCurrentArtwork = () => {
+    setDeleteConfirmationOpen(true);
+  };
+
+  const performDeleteArtwork = async () => {
     const activeArt = artworks[galleryState.activeArtworkIndex];
     if (activeArt) {
-      if (!window.confirm('Delete this canvas?')) return;
       // Remove from Firestore
       await deleteArtwork(activeArt.id);
       // Remove from localStorage
@@ -270,10 +278,23 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuth={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
-        onOpenAddCanvas={() => setAddCanvasModalOpen(true)}
-        onDeleteCurrentArtwork={handleDeleteCurrentArtwork}
+        onOpenAdminDashboard={() => setAdminDashboardOpen(true)}
         artworks={artworks}
       />
+
+      {/* Admin Dashboard */}
+      {adminDashboardOpen && (
+        <AdminDashboard
+          artworks={artworks}
+          currentUser={currentUser}
+          onClose={() => setAdminDashboardOpen(false)}
+          onUpdateArtworks={setArtworks}
+          onOpenAddCanvas={() => {
+            setAdminDashboardOpen(false);
+            setAddCanvasModalOpen(true);
+          }}
+        />
+      )}
 
       {/* Main Experience: 3D Canvas vs 2D Fallback */}
       {galleryState.viewMode === '3d' ? (
@@ -366,6 +387,13 @@ export default function App() {
         isOpen={addCanvasModalOpen}
         onClose={() => setAddCanvasModalOpen(false)}
         onAddArtwork={handleAddCanvas}
+      />
+
+      <ConfirmationModal
+        isOpen={deleteConfirmationOpen}
+        onClose={() => setDeleteConfirmationOpen(false)}
+        onConfirm={performDeleteArtwork}
+        title={`Delete "${artworks[galleryState.activeArtworkIndex]?.title || 'canvas'}"`}
       />
 
       {/* Non-intrusive Toast Notification */}

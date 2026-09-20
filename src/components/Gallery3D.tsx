@@ -11,6 +11,243 @@ import {
   createMuseumPlaqueTexture,
 } from '../utils/textureGenerator';
 
+// Procedural 3D Character "Trevor from GTA"
+function createTrevorCharacter() {
+  const group = new THREE.Group();
+
+  const skinMat = new THREE.MeshStandardMaterial({
+    color: '#d4a27e', // Weathered tan skin
+    roughness: 0.65,
+    metalness: 0.05,
+  });
+
+  const shirtMat = new THREE.MeshStandardMaterial({
+    color: '#dad6c9', // Dirty white/grey tank top
+    roughness: 0.85,
+    metalness: 0.0,
+  });
+
+  const jeansMat = new THREE.MeshStandardMaterial({
+    color: '#28384d', // Blue denim jeans
+    roughness: 0.8,
+    metalness: 0.05,
+  });
+
+  const bootMat = new THREE.MeshStandardMaterial({
+    color: '#2b1f18', // Dark brown leather boots
+    roughness: 0.7,
+    metalness: 0.1,
+  });
+
+  const hairMat = new THREE.MeshStandardMaterial({
+    color: '#382b20', // Receding hair
+    roughness: 0.9,
+  });
+
+  const stubbleMat = new THREE.MeshStandardMaterial({
+    color: '#6e5a4a', // 5 o'clock shadow
+    roughness: 0.9,
+  });
+
+  const tattooMat = new THREE.MeshStandardMaterial({
+    color: '#8f7768', // Arm tattoo tint
+    roughness: 0.7,
+  });
+
+  const eyeMat = new THREE.MeshBasicMaterial({ color: '#1a1816' });
+
+  // 1. Torso & Chest
+  const torsoGroup = new THREE.Group();
+  torsoGroup.position.y = 0.95;
+  group.add(torsoGroup);
+
+  // Tank top body box
+  const chestGeo = new THREE.BoxGeometry(0.46, 0.58, 0.26);
+  const chestMesh = new THREE.Mesh(chestGeo, shirtMat);
+  chestMesh.position.y = 0.29;
+  chestMesh.castShadow = true;
+  torsoGroup.add(chestMesh);
+
+  // Neck
+  const neckGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.12, 12);
+  const neckMesh = new THREE.Mesh(neckGeo, skinMat);
+  neckMesh.position.y = 0.62;
+  torsoGroup.add(neckMesh);
+
+  // 2. Head & Facial Features
+  const headGroup = new THREE.Group();
+  headGroup.position.set(0, 0.72, 0);
+  torsoGroup.add(headGroup);
+
+  // Head base
+  const headGeo = new THREE.BoxGeometry(0.24, 0.28, 0.25);
+  const headMesh = new THREE.Mesh(headGeo, skinMat);
+  headMesh.position.y = 0.14;
+  headMesh.castShadow = true;
+  headGroup.add(headMesh);
+
+  // Receding hairline & side hair
+  const sideHairLeft = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.22), hairMat);
+  sideHairLeft.position.set(-0.12, 0.18, -0.01);
+  headGroup.add(sideHairLeft);
+
+  const sideHairRight = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.14, 0.22), hairMat);
+  sideHairRight.position.set(0.12, 0.18, -0.01);
+  headGroup.add(sideHairRight);
+
+  const backHair = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.16, 0.04), hairMat);
+  backHair.position.set(0, 0.17, -0.12);
+  headGroup.add(backHair);
+
+  // Stubble / jaw
+  const jawStubble = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.1, 0.22), stubbleMat);
+  jawStubble.position.set(0, 0.06, 0.01);
+  headGroup.add(jawStubble);
+
+  // Nose
+  const nose = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.08, 0.06), skinMat);
+  nose.position.set(0, 0.14, 0.13);
+  headGroup.add(nose);
+
+  // Brow ridge (Trevor's intense scowl)
+  const brow = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.04, 0.05), skinMat);
+  brow.position.set(0, 0.21, 0.12);
+  brow.rotation.x = 0.15;
+  headGroup.add(brow);
+
+  // Eyes
+  const eyeL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.02), eyeMat);
+  eyeL.position.set(-0.06, 0.17, 0.125);
+  headGroup.add(eyeL);
+
+  const eyeR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 0.02), eyeMat);
+  eyeR.position.set(0.06, 0.17, 0.125);
+  headGroup.add(eyeR);
+
+  // 3. Arms (Sleeveless / Tank top exposes muscular tattooed arms)
+  const leftArmGroup = new THREE.Group();
+  leftArmGroup.position.set(-0.27, 0.52, 0);
+  torsoGroup.add(leftArmGroup);
+
+  const leftArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.48, 0.12), tattooMat);
+  leftArmMesh.position.y = -0.22;
+  leftArmMesh.castShadow = true;
+  leftArmGroup.add(leftArmMesh);
+
+  const leftHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
+  leftHand.position.y = -0.48;
+  leftArmGroup.add(leftHand);
+
+  const rightArmGroup = new THREE.Group();
+  rightArmGroup.position.set(0.27, 0.52, 0);
+  torsoGroup.add(rightArmGroup);
+
+  const rightArmMesh = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.48, 0.12), tattooMat);
+  rightArmMesh.position.y = -0.22;
+  rightArmMesh.castShadow = true;
+  rightArmGroup.add(rightArmMesh);
+
+  const rightHand = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.1, 0.1), skinMat);
+  rightHand.position.y = -0.48;
+  rightArmGroup.add(rightHand);
+
+  // 4. Legs & Boots
+  const leftLegGroup = new THREE.Group();
+  leftLegGroup.position.set(-0.13, 0.92, 0);
+  group.add(leftLegGroup);
+
+  const leftLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.75, 0.16), jeansMat);
+  leftLegMesh.position.y = -0.37;
+  leftLegMesh.castShadow = true;
+  leftLegGroup.add(leftLegMesh);
+
+  const leftBoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.24), bootMat);
+  leftBoot.position.set(0, -0.78, 0.03);
+  leftBoot.castShadow = true;
+  leftLegGroup.add(leftBoot);
+
+  const rightLegGroup = new THREE.Group();
+  rightLegGroup.position.set(0.13, 0.92, 0);
+  group.add(rightLegGroup);
+
+  const rightLegMesh = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.75, 0.16), jeansMat);
+  rightLegMesh.position.y = -0.37;
+  rightLegMesh.castShadow = true;
+  rightLegGroup.add(rightLegMesh);
+
+  const rightBoot = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.18, 0.24), bootMat);
+  rightBoot.position.set(0, -0.78, 0.03);
+  rightBoot.castShadow = true;
+  rightLegGroup.add(rightBoot);
+
+  // State for walking physics
+  let walkPhase = 0;
+  let targetRotY = Math.PI / 2 - 0.2;
+
+  const update = (delta: number, currentX: number, targetX: number, isZooming: boolean) => {
+    const dx = targetX - currentX;
+    const moveDist = Math.abs(dx);
+
+    if (moveDist > 0.005 && !isZooming) {
+      // Trevor is walking!
+      walkPhase += delta * Math.min(18, Math.max(6, moveDist * 12));
+
+      // Facing direction
+      if (dx > 0.02) {
+        targetRotY = Math.PI / 2 - 0.25; // Walking right
+      } else if (dx < -0.02) {
+        targetRotY = -Math.PI / 2 + 0.25; // Walking left
+      }
+
+      // Leg swing
+      const legSwing = Math.sin(walkPhase) * 0.55;
+      leftLegGroup.rotation.x = legSwing;
+      rightLegGroup.rotation.x = -legSwing;
+
+      // Arm swing (opposite of legs)
+      leftArmGroup.rotation.x = -legSwing * 0.85;
+      rightArmGroup.rotation.x = legSwing * 0.85;
+
+      // Vertical stride bounce
+      torsoGroup.position.y = 0.95 + Math.abs(Math.sin(walkPhase * 2)) * 0.04;
+      headGroup.rotation.y = Math.sin(walkPhase) * 0.06;
+      torsoGroup.rotation.y = Math.sin(walkPhase) * 0.05;
+    } else {
+      // Idle pose
+      leftLegGroup.rotation.x *= 0.85;
+      rightLegGroup.rotation.x *= 0.85;
+      leftArmGroup.rotation.x *= 0.85;
+      rightArmGroup.rotation.x *= 0.85;
+
+      torsoGroup.position.y = 0.95 + Math.sin(Date.now() * 0.003) * 0.01;
+      headGroup.rotation.y *= 0.85;
+      torsoGroup.rotation.y *= 0.85;
+
+      if (isZooming) {
+        targetRotY = 0; // Turn facing the artwork wall
+      } else {
+        targetRotY = Math.PI / 2 - 0.2;
+      }
+    }
+
+    // Smooth body rotation transition
+    group.rotation.y += (targetRotY - group.rotation.y) * 0.1;
+  };
+
+  const dispose = () => {
+    skinMat.dispose();
+    shirtMat.dispose();
+    jeansMat.dispose();
+    bootMat.dispose();
+    hairMat.dispose();
+    stubbleMat.dispose();
+    tattooMat.dispose();
+    eyeMat.dispose();
+  };
+
+  return { group, update, dispose };
+}
+
 interface Gallery3DProps {
   scrollProgress: number; // 0 to 1
   activeArtworkIndex: number;
@@ -71,9 +308,11 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     artwork: BotanicalArtwork;
     group: THREE.Group;
     canvasMesh: THREE.Mesh;
-    canvasMaterial: THREE.MeshStandardMaterial;
+    canvasMaterial: THREE.MeshLambertMaterial; // Updated to Lambert
+    texture: THREE.Texture; // Store texture reference
     haloMesh: THREE.Mesh;
     biasPointLight: THREE.PointLight;
+    spotLight: THREE.SpotLight; // Added spotLight
     particleSystem: THREE.Points;
     particlePositions: Float32Array;
     particleVelocities: Float32Array;
@@ -86,6 +325,11 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
   const mouseTargetRef = useRef({ x: 0, y: 0 });
   const mouseCurrentRef = useRef({ x: 0, y: 0 });
   const scrollSmoothRef = useRef(scrollProgress);
+
+  // Zoom / Fly-over transition state when clicking an artwork
+  const zoomingArtRef = useRef<BotanicalArtwork | null>(null);
+  const zoomProgressRef = useRef<number>(0);
+  const modalOpenedRef = useRef<boolean>(false);
 
   // Check WebGL availability
   useEffect(() => {
@@ -146,6 +390,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     renderer.toneMappingExposure = 1.18;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+
+    // Instantiate Trevor from GTA 3D Character
+    const trevor = createTrevorCharacter();
+    scene.add(trevor.group);
 
     // Ensure canvas element is block-level to avoid ResizeObserver feedback loops
     renderer.domElement.style.display = 'block';
@@ -328,12 +576,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       }
 
       // Canvas Face Mesh with pristine botanical clarity & subtle self-illumination
-      const canvasMat = new THREE.MeshStandardMaterial({
+      const canvasMat = new THREE.MeshLambertMaterial({
         map: artTexture,
-        roughness: 0.52,
-        metalness: 0.04,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.15, // Reduced intensity and removed emissiveMap
+        emissiveIntensity: 0.15,
       });
 
       const canvasMesh = new THREE.Mesh(frameGeometry, canvasMat);
@@ -347,45 +593,49 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       frontFillLight.position.set(0, 0, 2.2);
       artGroup.add(frontFillLight);
 
-      // 1. Handcrafted Walnut Outer Frame Molding
-      const walnutMat = new THREE.MeshStandardMaterial({
-        color: '#382516',
-        roughness: 0.38,
-        metalness: 0.2,
+      // 1. Handcrafted Futuristic Y2K Plastic Outer Frame
+      const frameMat = new THREE.MeshPhysicalMaterial({
+        color: '#ff00ff', // Y2K neon pink
+        metalness: 0.1,
+        roughness: 0.1,
+        transmission: 0.5,
+        thickness: 0.5,
+        side: THREE.DoubleSide
       });
 
-      // 2. Antiqued Gold / Brass Fillet Liner
-      const brassFilletMat = new THREE.MeshStandardMaterial({
-        color: '#c9a15b',
-        roughness: 0.28,
-        metalness: 0.72,
+      // 2. Neon Cyan Fillet Liner
+      const filletMat = new THREE.MeshStandardMaterial({
+        color: '#00ffff', // Y2K neon cyan
+        emissive: '#00ffff',
+        emissiveIntensity: 0.5,
+        roughness: 0.2,
       });
 
       if (art.frameShape === 'circular') {
-        // Outer walnut torus molding
-        const outerTorus = new THREE.TorusGeometry(frameW / 2 + 0.08, 0.07, 20, 64);
-        const outerMesh = new THREE.Mesh(outerTorus, walnutMat);
+        // Outer Y2K frame torus molding
+        const outerTorus = new THREE.TorusGeometry(frameW / 2 + 0.1, 0.08, 24, 96);
+        const outerMesh = new THREE.Mesh(outerTorus, frameMat);
         outerMesh.position.z = 0.01;
         artGroup.add(outerMesh);
 
-        // Inner brass fillet liner ring
-        const innerTorus = new THREE.TorusGeometry(frameW / 2 + 0.015, 0.03, 16, 64);
-        const innerMesh = new THREE.Mesh(innerTorus, brassFilletMat);
+        // Inner neon fillet liner ring
+        const innerTorus = new THREE.TorusGeometry(frameW / 2 + 0.02, 0.04, 24, 96);
+        const innerMesh = new THREE.Mesh(innerTorus, filletMat);
         innerMesh.position.z = 0.03;
         artGroup.add(innerMesh);
       } else {
-        // Outer walnut frame box
+        // Outer Y2K frame box
         const outerFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(frameW + 0.22, frameH + 0.22, 0.09),
-          walnutMat
+          new THREE.BoxGeometry(frameW + 0.28, frameH + 0.28, 0.1),
+          frameMat
         );
-        outerFrame.position.z = -0.015;
+        outerFrame.position.z = -0.02;
         artGroup.add(outerFrame);
 
-        // Inner brass fillet liner
+        // Inner neon fillet liner
         const innerFillet = new THREE.Mesh(
-          new THREE.BoxGeometry(frameW + 0.05, frameH + 0.05, 0.095),
-          brassFilletMat
+          new THREE.BoxGeometry(frameW + 0.08, frameH + 0.08, 0.11),
+          filletMat
         );
         innerFillet.position.z = 0.01;
         artGroup.add(innerFillet);
@@ -393,40 +643,40 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
       // Soft Wall Cast Shadow Behind Frame
       const shadowMat = new THREE.MeshBasicMaterial({
-        color: '#1a120b',
+        color: '#000000',
         transparent: true,
-        opacity: 0.28,
+        opacity: 0.4, // Slightly deeper shadow
       });
       const shadowPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(frameW + 0.45, frameH + 0.45),
+        new THREE.PlaneGeometry(frameW + 0.6, frameH + 0.6),
         shadowMat
       );
-      shadowPlane.position.set(0.04, -0.06, -0.05);
+      shadowPlane.position.set(0.05, -0.08, -0.08);
       artGroup.add(shadowPlane);
 
       // Dedicated Bias Lighting (Glow Halo mesh + PointLight behind canvas)
-      const glowTex = createBiasLightGlowTexture(art.biasLightColor);
+      // RECTANGULAR STRIP LIGHTING CONCEPT
+      const glowGeo = new THREE.PlaneGeometry(frameW + 0.6, frameH + 0.6);
       const glowMat = new THREE.MeshBasicMaterial({
-        map: glowTex,
+        color: new THREE.Color(art.biasLightColor),
         transparent: true,
-        opacity: 0.375,
+        opacity: 0.2, // Subtle glow
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
 
-      const maxDim = Math.max(frameW, frameH);
-      const glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(maxDim * 2.2, maxDim * 2.2), glowMat);
-      glowPlane.position.set(0, 0, -0.06);
+      const glowPlane = new THREE.Mesh(glowGeo, glowMat);
+      glowPlane.position.set(0, 0, -0.1); // Slightly behind frame
       artGroup.add(glowPlane);
 
       // Bias light point light cast onto the wall behind
       const biasLight = new THREE.PointLight(
         new THREE.Color(art.biasLightColor),
-        art.biasLightIntensity * 1.6,
-        6.5,
-        1.5
+        art.biasLightIntensity * 1.2,
+        4.0, // Tighter radius
+        2.0
       );
-      biasLight.position.set(0, 0, 0.2);
+      biasLight.position.set(0, 0, 0.1);
       artGroup.add(biasLight);
 
       // Small Museum Spotlight directed at artwork position (independent target)
@@ -437,7 +687,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       const spotLight = new THREE.SpotLight('#fff4e0', 1.8, 12, Math.PI / 6, 0.45, 1.2);
       spotLight.position.set(xPos, wallHeight - 0.4, -initialWidth / 2 + 3.2);
       spotLight.target = spotTarget;
-      spotLight.castShadow = true;
+      // Do not cast shadows on per-artwork spotlights to keep texture units well under WebGL limit (16)
+      spotLight.castShadow = false;
       scene.add(spotLight);
 
       // Disintegration Particle System (leaves and floral petals)
@@ -487,8 +738,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         group: artGroup,
         canvasMesh,
         canvasMaterial: canvasMat,
+        texture: artTexture,
         haloMesh: glowPlane,
         biasPointLight: biasLight,
+        spotLight: spotLight,
         particleSystem,
         particlePositions: pPositions,
         particleVelocities: pVelocities,
@@ -557,9 +810,13 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         if (intersects.length > 0) {
           const hit = intersects[0].object;
           const art = hit.userData.artwork as BotanicalArtwork;
-          if (art && callbacksRef.current.onArtworkClick) {
-            callbacksRef.current.onArtworkClick(art);
+          if (art) {
+            zoomingArtRef.current = art;
+            zoomProgressRef.current = 0;
+            modalOpenedRef.current = false;
           }
+        } else if (zoomingArtRef.current) {
+          zoomingArtRef.current = null;
         }
       } catch {
         // Suppress
@@ -657,27 +914,29 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         rightWallRef.current.scale.set(currentWidth / initialWidth, 1, 1);
       }
 
-      // 8c. Camera POV & Path:
+      // 8c. Camera POV, Trevor Position & Path:
+      let targetWalkX = 0;
       let targetCamX = 0;
-      let targetCamY = 2.4;
+      let targetCamY = 2.45;
       let targetCamZ = 24;
       let targetLookX = 0;
-      let targetLookY = 2.8;
+      let targetLookY = 2.1;
       let targetLookZ = -currentWidth / 2;
 
       const numArtworks = artworkObjects.length;
 
       if (p <= 0.14) {
-        // Approaching & entering through the doorway
+        // Approaching & entering through doorway
         const t = p / 0.14;
-        targetCamX = THREE.MathUtils.lerp(0, -1, t);
-        targetCamY = THREE.MathUtils.lerp(2.4, 3.0, t);
-        targetCamZ = THREE.MathUtils.lerp(24, 2.5, t);
-        targetLookX = THREE.MathUtils.lerp(0, -1, t);
-        targetLookY = THREE.MathUtils.lerp(2.8, 3.2, t);
-        targetLookZ = -currentWidth / 2;
+        targetWalkX = THREE.MathUtils.lerp(0, -1, t);
+        targetCamX = THREE.MathUtils.lerp(0, -1.2, t);
+        targetCamY = THREE.MathUtils.lerp(2.4, 2.45, t);
+        targetCamZ = THREE.MathUtils.lerp(24, -currentWidth / 2 + 3.8, t);
+        targetLookX = targetWalkX + 0.3;
+        targetLookY = 2.1;
+        targetLookZ = -currentWidth / 2 + 0.1;
       } else if (p < 0.88 && numArtworks > 0) {
-        // Scrolling along the gallery wall from artwork 0 to artwork 4
+        // Scrolling along gallery wall
         const galleryT = Math.max(0, Math.min(1, (p - 0.14) / (0.88 - 0.14)));
         const rawArtworkPos = galleryT * (numArtworks - 1);
         const currIndex = Math.max(0, Math.min(Math.floor(rawArtworkPos), numArtworks - 1));
@@ -688,7 +947,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         const nextArt = artworkObjects[nextIndex];
 
         if (currentArt && nextArt) {
-          // Smooth plateau easing so camera pauses stably in front of each artwork while walking
           let smoothFraction = fraction;
           if (fraction < 0.22) {
             const t = fraction / 0.22;
@@ -701,46 +959,87 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
             smoothFraction = 0.04 + 0.92 * (t * t * (3 - 2 * t));
           }
 
-          targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
-          targetCamY = 3.2;
-          // Refined camera distance (3.95m from wall) so the entire frame, moldings, wall halo, and plaque are properly visible
-          targetCamZ = -currentWidth / 2 + 3.95;
+          targetWalkX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
+          targetCamX = targetWalkX - 0.2;
+          targetCamY = 2.45;
+          targetCamZ = -currentWidth / 2 + 3.85;
 
-          // Directly look squarely at the artwork center and frame
-          targetLookX = targetCamX;
-          targetLookY = 3.08;
+          targetLookX = targetWalkX + 0.4;
+          targetLookY = 2.2;
           targetLookZ = -currentWidth / 2 + 0.15;
         }
 
-        // Trigger active artwork index callback
-        const activeIdx = Math.max(0, Math.min(Math.round(rawArtworkPos), numArtworks - 1));
+        const activeIdx = numArtworks > 0 ? Math.max(0, Math.min(Math.round(rawArtworkPos), numArtworks - 1)) : 0;
         if (activeIdx !== lastAnnouncedIndex) {
           lastAnnouncedIndex = activeIdx;
           callbacksRef.current.onArtworkChange(activeIdx);
         }
       } else {
-        // Exiting to the sunlit veranda / About the Artist space
+        // Exiting to sunlit veranda
         const exitT = Math.max(0, Math.min(1, (p - 0.88) / 0.12));
         const lastStationX = artworkObjects.length > 0 ? artworkObjects[artworkObjects.length - 1].xStation : 39;
-        targetCamX = THREE.MathUtils.lerp(lastStationX, lastStationX + 9, exitT);
-        targetCamY = THREE.MathUtils.lerp(3.2, 3.2, exitT);
-        targetCamZ = THREE.MathUtils.lerp(-currentWidth / 2 + 3.25, 6, exitT);
+        targetWalkX = THREE.MathUtils.lerp(lastStationX, lastStationX + 9, exitT);
+        targetCamX = targetWalkX - 0.2;
+        targetCamY = 2.45;
+        targetCamZ = THREE.MathUtils.lerp(-currentWidth / 2 + 3.85, 6, exitT);
 
-        targetLookX = targetCamX + 4;
-        targetLookY = 3.2;
-        targetLookZ = -currentWidth / 2 + 2;
+        targetLookX = targetWalkX + 2;
+        targetLookY = 2.4;
+        targetLookZ = -currentWidth / 2 + 1;
       }
 
-      // Add gentle, non-jarring mouse parallax
+      // Update Trevor 3D Character Position & Stride Animation
+      trevor.group.position.x += (targetWalkX - trevor.group.position.x) * 0.08;
+      trevor.group.position.y = 0;
+      trevor.group.position.z = -currentWidth / 2 + 1.8;
+
+      const isCurrentlyZooming = zoomingArtRef.current !== null;
+      trevor.update(delta, trevor.group.position.x, targetWalkX, isCurrentlyZooming);
+
+      // Mouse Parallax
       const parallaxX = (mouseCurrentRef.current.x || 0) * 0.45;
       const parallaxY = (mouseCurrentRef.current.y || 0) * 0.25;
 
-      // Responsive interpolation factor (0.04) eliminates sluggish trailing motion blur and slows down camera
-      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.04;
-      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.04;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.04;
+      // Handle POV camera behavior (Walking vs. Zooming Fly-Over over Trevor's head)
+      if (zoomingArtRef.current) {
+        zoomProgressRef.current = Math.min(1.0, zoomProgressRef.current + delta * 1.8);
+        const t = zoomProgressRef.current;
+        const smoothT = t * t * (3 - 2 * t);
 
-      camera.lookAt(targetLookX + parallaxX * 0.4, targetLookY + parallaxY * 0.4, targetLookZ);
+        // Arc UP over Trevor's head!
+        const arcY = Math.sin(smoothT * Math.PI) * 1.7;
+
+        const activeObj = artworkObjects.find((o) => o.artwork.id === zoomingArtRef.current?.id);
+        const artX = activeObj ? activeObj.xStation : targetCamX;
+
+        const flyCamX = THREE.MathUtils.lerp(targetCamX, artX, smoothT);
+        const flyCamY = THREE.MathUtils.lerp(targetCamY, 3.08, smoothT) + arcY;
+        const flyCamZ = THREE.MathUtils.lerp(targetCamZ, -currentWidth / 2 + 1.35, smoothT);
+
+        const flyLookX = THREE.MathUtils.lerp(targetLookX, artX, smoothT);
+        const flyLookY = THREE.MathUtils.lerp(targetLookY, 3.08, smoothT);
+        const flyLookZ = THREE.MathUtils.lerp(targetLookZ, -currentWidth / 2 + 0.15, smoothT);
+
+        camera.position.set(flyCamX, flyCamY, flyCamZ);
+        camera.lookAt(flyLookX, flyLookY, flyLookZ);
+
+        if (t >= 1.0 && !modalOpenedRef.current) {
+          modalOpenedRef.current = true;
+          if (callbacksRef.current.onArtworkClick && zoomingArtRef.current) {
+            callbacksRef.current.onArtworkClick(zoomingArtRef.current);
+          }
+        }
+      } else {
+        // Normal 3rd person POV behind Trevor
+        zoomProgressRef.current = Math.max(0.0, zoomProgressRef.current - delta * 2.5);
+        modalOpenedRef.current = false;
+
+        camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.05;
+        camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.05;
+        camera.position.z += (targetCamZ - camera.position.z) * 0.05;
+
+        camera.lookAt(targetLookX + parallaxX * 0.4, targetLookY + parallaxY * 0.4, targetLookZ);
+      }
 
       // 8d. Update Artworks: Permanent 100% Solid Canvases with Ambient Botanical Petals
       artworkObjects.forEach((item, idx) => {
@@ -763,6 +1062,12 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
         // Position on wall adjusts if wall moves
         item.group.position.z = -currentWidth / 2 + 0.14;
+
+        // Ensure canvas material map stays assigned
+        if (!item.canvasMaterial.map) {
+          item.canvasMaterial.map = item.texture;
+          item.canvasMaterial.needsUpdate = true;
+        }
 
         // Keep all canvases completely solid, fully opaque, and crisp at all times!
         item.canvasMaterial.opacity = 1.0;
@@ -798,6 +1103,15 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         const hoverBoost = hoveredArtwork?.id === item.artwork.id ? 1.4 : 1.0;
         item.biasPointLight.intensity = item.artwork.biasLightIntensity * pulse * hoverBoost * (isCurrentlyActive ? 1.2 : 0.85);
 
+        // Dynamic Spotlight: Adjust intensity & temperature (color) based on scroll
+        // Warmer for early scroll (approaching), cooler for exit
+        const spotlightIntensity = isCurrentlyActive ? 2.2 : 0.8;
+        item.spotLight.intensity = THREE.MathUtils.lerp(item.spotLight.intensity, spotlightIntensity, 0.1);
+        
+        // Color transition: warm -> white -> cool
+        const scrollArtT = Math.max(0, Math.min(1, (p - 0.14) / 0.74));
+        item.spotLight.color.set(new THREE.Color().setHSL(0.08 + scrollArtT * 0.05, 0.6, 0.9));
+
         // Soft tilt on hovered canvas
         if (hoveredArtwork?.id === item.artwork.id) {
           item.canvasMesh.rotation.y = THREE.MathUtils.lerp(item.canvasMesh.rotation.y, (mouseCurrentRef.current.x || 0) * 0.06, 0.1);
@@ -816,6 +1130,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     // Cleanup on unmount
     return () => {
       isDisposed = true;
+      trevor.dispose();
       if (animFrameId.current) cancelAnimationFrame(animFrameId.current);
       container.removeEventListener('mousemove', onPointerMove);
       container.removeEventListener('click', onPointerClick);
