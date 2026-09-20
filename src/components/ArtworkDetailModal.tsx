@@ -26,6 +26,8 @@ import {
   Trash2,
 } from 'lucide-react';
 import { ARTIST_INFO } from '../data/artworks';
+import { EditArtworkModal } from './EditArtworkModal';
+import { deleteArtwork } from '../lib/artworks';
 
 interface ArtworkDetailModalProps {
   artwork: BotanicalArtwork | null;
@@ -33,6 +35,7 @@ interface ArtworkDetailModalProps {
   currentUser?: User | null;
   onOpenAuth?: () => void;
   onUpdateArtwork?: (artwork: BotanicalArtwork) => void;
+  onDeleteArtwork?: (artworkId: string) => void;
 }
 
 export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
@@ -41,6 +44,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
   currentUser,
   onOpenAuth,
   onUpdateArtwork,
+  onDeleteArtwork,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -51,9 +55,8 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
-  // Price editing state for admin
-  const [isEditingPrice, setIsEditingPrice] = useState(false);
-  const [priceInput, setPriceInput] = useState('');
+  // Editing state for admin
+  const [isEditing, setIsEditing] = useState(false);
 
   // Review editing state
   const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
@@ -71,8 +74,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
     setReviewError(null);
     setReviewSuccess(false);
     setNewComment('');
-    setIsEditingPrice(false);
-    setPriceInput(artwork.price || '₹18,500');
+    setIsEditing(false);
     setEditingReviewId(null);
 
     if (canvasRef.current) {
@@ -92,13 +94,11 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
 
   if (!artwork) return null;
 
-  const handleSavePrice = () => {
-    const trimmed = priceInput.trim();
-    if (!trimmed) return;
-    const updated = { ...artwork, price: trimmed };
-    updateStoredArtwork(updated);
-    if (onUpdateArtwork) onUpdateArtwork(updated);
-    setIsEditingPrice(false);
+  const handleDeleteArtwork = async () => {
+    if (!window.confirm('Are you sure you want to delete this artwork?')) return;
+    await deleteArtwork(artwork.id);
+    if (onDeleteArtwork) onDeleteArtwork(artwork.id);
+    onClose();
   };
 
   const handleDeleteReview = (reviewId: string) => {
@@ -200,24 +200,27 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start overflow-y-auto pr-1">
           {/* Canvas Preview with frame preview */}
           <div className="md:col-span-6 flex flex-col items-center justify-center">
-            <div
-              className="relative p-2 rounded-2xl shadow-xl transition-transform hover:scale-[1.01] w-full"
-              style={{
-                boxShadow: `0 0 45px ${artwork.biasLightColor}44`,
-                border: `2px solid ${artwork.biasLightColor}66`,
-              }}
-            >
-              <canvas
-                ref={canvasRef}
-                className="w-full max-h-[400px] object-contain rounded-xl shadow-lg bg-[#fbf7f1]"
-              />
-              <div
-                className="absolute inset-0 rounded-2xl pointer-events-none"
-                style={{
-                  boxShadow: `inset 0 0 30px ${artwork.biasLightColor}22`,
-                }}
-              />
-            </div>
+        <div
+          className="relative p-4 rounded-lg shadow-lg w-full"
+          style={{
+            // Square strip lighting
+            boxShadow: `0px -10px 20px -5px ${artwork.biasLightColor}88, 0px 10px 20px -5px ${artwork.biasLightColor}88`,
+            border: `1px solid ${artwork.biasLightColor}44`,
+            borderRadius: '8px',
+          }}
+        >
+          <canvas
+            ref={canvasRef}
+            className="w-full max-h-[400px] object-contain rounded-xl shadow-lg bg-[#fbf7f1]"
+          />
+          <div
+            className="absolute inset-0 pointer-events-none rounded-lg"
+            style={{
+              // Studio light mix
+              background: `linear-gradient(135deg, ${artwork.biasLightColor}11 0%, transparent 60%)`,
+            }}
+          />
+        </div>
             <p className="text-[11px] font-mono text-[#7d6148] mt-3 uppercase tracking-wider">
               {artwork.dimensions} • {artwork.frameShape} custom mount
             </p>
@@ -283,55 +286,45 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
               )}
             </div>
 
-            {/* Price section & Admin Price Editor */}
-            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#f5ece0]/80 border border-[#ded0be]">
-              <div>
-                <span className="text-[10px] uppercase font-mono tracking-wider text-[#7d6148] block">
-                  Canvas Acquisition Price
-                </span>
-                {isEditingPrice ? (
-                  <div className="flex items-center gap-2 mt-1.5">
-                    <input
-                      type="text"
-                      value={priceInput}
-                      onChange={(e) => setPriceInput(e.target.value)}
-                      placeholder="e.g. ₹22,000"
-                      className="px-2.5 py-1 rounded-lg bg-[#fffefc] border border-[#85582f] text-xs font-semibold text-[#2d1f14] focus:outline-none w-32"
-                    />
-                    <button
-                      onClick={handleSavePrice}
-                      className="px-2.5 py-1 rounded-lg bg-[#85582f] text-[#fffdfa] text-xs font-medium hover:bg-[#6e4622] cursor-pointer"
-                    >
-                      Save
-                    </button>
-                    <button
-                      onClick={() => setIsEditingPrice(false)}
-                      className="px-2 py-1 rounded-lg bg-[#eadbc8] text-[#5c4430] text-xs hover:bg-[#decaba] cursor-pointer"
-                    >
-                      Cancel
-                    </button>
-                  </div>
-                ) : (
-                  <div className="font-serif text-2xl font-bold text-[#85582f] tracking-wide mt-0.5">
-                    {artwork.price || '₹18,500'}
-                  </div>
-                )}
-              </div>
-
-              {isAdmin && !isEditingPrice && (
+            {/* Admin Controls */}
+            {isAdmin && (
+              <div className="flex items-center gap-2 mb-4 p-3 rounded-2xl bg-[#f5ece0]/80 border border-[#ded0be]">
                 <button
-                  onClick={() => {
-                    setPriceInput(artwork.price || '₹18,500');
-                    setIsEditingPrice(true);
-                  }}
+                  onClick={() => setIsEditing(true)}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#fffefc] hover:bg-[#f6eee3] text-[#85582f] border border-[#d6c4af] text-xs font-medium transition-all shadow-2xs cursor-pointer"
-                  title="Admin: Edit Canvas Price"
                 >
                   <Pencil className="w-3.5 h-3.5" />
-                  <span>Edit Price</span>
+                  <span>Edit Canvas</span>
                 </button>
-              )}
+                <button
+                  onClick={handleDeleteArtwork}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#fffefc] hover:bg-[#fbeeed] text-[#9e3d3d] border border-[#d6c4af] text-xs font-medium transition-all shadow-2xs cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Delete</span>
+                </button>
+              </div>
+            )}
+
+            {/* Price section */}
+            <div className="p-3.5 rounded-2xl bg-[#f5ece0]/80 border border-[#ded0be]">
+              <span className="text-[10px] uppercase font-mono tracking-wider text-[#7d6148] block">
+                Canvas Acquisition Price
+              </span>
+              <div className="font-serif text-2xl font-bold text-[#85582f] tracking-wide mt-0.5">
+                {artwork.price || '₹18,500'}
+              </div>
             </div>
+
+            {isEditing && (
+              <EditArtworkModal
+                artwork={artwork}
+                onClose={() => setIsEditing(false)}
+                onUpdate={() => {
+                  if (onUpdateArtwork) onUpdateArtwork(artwork); // Simplification, should re-fetch
+                }}
+              />
+            )}
 
             <div className="space-y-2.5 text-xs text-[#523e2d] pb-3 border-b border-[#ded0be]">
               <div className="flex items-start gap-2.5">

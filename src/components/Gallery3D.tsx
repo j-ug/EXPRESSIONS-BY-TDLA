@@ -64,6 +64,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
   const backWallRef = useRef<THREE.Mesh | null>(null);
   const frontWallRef = useRef<THREE.Mesh | null>(null);
   const skylightLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const plaquesRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Artworks 3D objects & disintegration particle systems
   interface ArtworkObject {
@@ -181,14 +182,12 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       color: '#f3eae0',
       roughness: 0.88,
       metalness: 0.02,
-      map: plasterTexture,
     });
 
     const floorMaterial = new THREE.MeshStandardMaterial({
       color: '#ded1bf',
       roughness: 0.58,
       metalness: 0.08,
-      map: floorTexture,
     });
 
     const ceilingMaterial = new THREE.MeshStandardMaterial({
@@ -334,8 +333,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         roughness: 0.52,
         metalness: 0.04,
         emissive: new THREE.Color('#ffffff'),
-        emissiveMap: artTexture,
-        emissiveIntensity: 0.32, // Maintains vivid colors and micro-details when camera is moving and at glancing angles
+        emissiveIntensity: 0.15, // Reduced intensity and removed emissiveMap
       });
 
       const canvasMesh = new THREE.Mesh(frameGeometry, canvasMat);
@@ -406,30 +404,18 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       shadowPlane.position.set(0.04, -0.06, -0.05);
       artGroup.add(shadowPlane);
 
-      // Museum Wall Label Plaque mounted right beneath the frame
-      const plaqueTex = createMuseumPlaqueTexture(art);
-      const plaqueMat = new THREE.MeshStandardMaterial({
-        map: plaqueTex,
-        roughness: 0.38,
-        metalness: 0.18,
-      });
-      const plaqueGeo = new THREE.BoxGeometry(0.72, 0.36, 0.025);
-      const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
-      plaqueMesh.position.set(0, -frameH / 2 - 0.38, 0.015);
-      plaqueMesh.castShadow = true;
-      artGroup.add(plaqueMesh);
-
       // Dedicated Bias Lighting (Glow Halo mesh + PointLight behind canvas)
       const glowTex = createBiasLightGlowTexture(art.biasLightColor);
       const glowMat = new THREE.MeshBasicMaterial({
         map: glowTex,
         transparent: true,
-        opacity: 0.75,
+        opacity: 0.375,
         blending: THREE.AdditiveBlending,
         depthWrite: false,
       });
 
-      const glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(frameW * 2.2, frameH * 2.2), glowMat);
+      const maxDim = Math.max(frameW, frameH);
+      const glowPlane = new THREE.Mesh(new THREE.PlaneGeometry(maxDim * 2.2, maxDim * 2.2), glowMat);
       glowPlane.position.set(0, 0, -0.06);
       artGroup.add(glowPlane);
 
@@ -749,15 +735,32 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       const parallaxX = (mouseCurrentRef.current.x || 0) * 0.45;
       const parallaxY = (mouseCurrentRef.current.y || 0) * 0.25;
 
-      // Responsive interpolation factor (0.12) eliminates sluggish trailing motion blur
-      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.12;
-      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.12;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.12;
+      // Responsive interpolation factor (0.04) eliminates sluggish trailing motion blur and slows down camera
+      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.04;
+      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.04;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.04;
 
       camera.lookAt(targetLookX + parallaxX * 0.4, targetLookY + parallaxY * 0.4, targetLookZ);
 
       // 8d. Update Artworks: Permanent 100% Solid Canvases with Ambient Botanical Petals
       artworkObjects.forEach((item, idx) => {
+        // Update plaque DOM element directly
+        const plaque = plaquesRef.current[item.artwork.id];
+        if (plaque) {
+          const vector = new THREE.Vector3(item.group.position.x, item.group.position.y - 1.8, item.group.position.z);
+          vector.project(camera);
+          
+          if (vector.z < 1) {
+            const x = (vector.x + 1) / 2 * (containerRef.current?.clientWidth || 0);
+            const y = -(vector.y - 1) / 2 * (containerRef.current?.clientHeight || 0);
+            plaque.style.left = `${x}px`;
+            plaque.style.top = `${y}px`;
+            plaque.style.display = 'flex';
+          } else {
+            plaque.style.display = 'none';
+          }
+        }
+
         // Position on wall adjusts if wall moves
         item.group.position.z = -currentWidth / 2 + 0.14;
 
@@ -842,6 +845,19 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none" ref={containerRef}>
+      {artworks.map((art) => (
+        <div
+          key={art.id}
+          ref={(el) => { plaquesRef.current[art.id] = el; }}
+          className="absolute z-20 flex flex-col items-center bg-[#fffbf9]/90 backdrop-blur-sm p-3 rounded-sm border border-[#e0d0c0] shadow-md pointer-events-none text-center transform -translate-x-1/2 -translate-y-full"
+          style={{ display: 'none' }}
+        >
+          <h4 className="font-serif text-sm font-bold text-[#1a120b] mb-0.5">{art.title}</h4>
+          <p className="text-[10px] text-[#4a3a2a] uppercase tracking-wide">{art.tamilTitle}</p>
+          <div className="w-full h-[1px] bg-[#d0c0b0] my-1.5" />
+          <p className="text-[10px] text-[#2d1f14] font-semibold">{art.medium} • {art.year}</p>
+        </div>
+      ))}
       {/* Floating subtle hover tooltip when hovering artwork in 3D */}
       {hoveredArtwork && (
         <div className="pointer-events-none absolute bottom-8 left-1/2 -translate-x-1/2 z-20 px-4 py-2 rounded-full bg-[#fffdf9]/95 backdrop-blur-md border border-[#ded0be] text-xs tracking-wider uppercase text-[#2d1f14] shadow-xl flex items-center gap-2 animate-fade-in">

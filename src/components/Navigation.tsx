@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, VolumeX, Eye, Info, Sparkles, Plus, LogIn, LogOut, User as UserIcon, ShieldCheck } from 'lucide-react';
+import { Volume2, VolumeX, Eye, Info, Sparkles, Plus, LogIn, LogOut, User as UserIcon, ShieldCheck, Trash2 } from 'lucide-react';
 import { BotanicalArtwork, User } from '../types';
 import { BOTANICAL_ARTWORKS } from '../data/artworks';
 
@@ -17,6 +17,7 @@ interface NavigationProps {
   onOpenAuth: () => void;
   onSignOut: () => void;
   onOpenAddCanvas?: () => void;
+  onDeleteCurrentArtwork?: () => void;
   artworks?: BotanicalArtwork[];
 }
 
@@ -34,6 +35,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onOpenAuth,
   onSignOut,
   onOpenAddCanvas,
+  onDeleteCurrentArtwork,
   artworks = BOTANICAL_ARTWORKS,
 }) => {
   return (
@@ -83,14 +85,24 @@ export const Navigation: React.FC<NavigationProps> = ({
       <div className="pointer-events-auto flex items-center gap-1.5 sm:gap-2.5">
         {/* Admin "Add Canvas" CTA */}
         {currentUser?.isAdmin && onOpenAddCanvas && (
-          <button
-            onClick={onOpenAddCanvas}
-            className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold bg-[#2a6836] hover:bg-[#20512a] text-[#f7faf7] border border-[#3e844c] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer animate-pulse-subtle"
-            title="Add a new canvas to gallery (Admin)"
-          >
-            <Plus className="w-3.5 h-3.5" />
-            <span className="text-[11px] font-mono">Add Canvas</span>
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={onOpenAddCanvas}
+              className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold bg-[#2a6836] hover:bg-[#20512a] text-[#f7faf7] border border-[#3e844c] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              title="Add a new canvas to gallery (Admin)"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-mono">Add</span>
+            </button>
+            <button
+              onClick={onDeleteCurrentArtwork}
+              className="px-2.5 sm:px-3 py-1.5 rounded-full text-xs font-semibold bg-[#a33232] hover:bg-[#7d2424] text-[#fffefa] border border-[#d6c4af] transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+              title="Delete current canvas"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span className="text-[11px] font-mono">Delete</span>
+            </button>
+          </div>
         )}
 
         {/* Auth status & actions */}

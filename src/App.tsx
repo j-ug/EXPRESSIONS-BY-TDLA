@@ -12,7 +12,9 @@ import { MobileHorizontalControls } from './components/MobileHorizontalControls'
 import { BotanicalArtwork, GalleryState, User } from './types';
 import { galleryAudio } from './utils/audio';
 import { getCurrentUser, logoutUser } from './utils/auth';
-import { getAllArtworks, saveDynamicArtwork, updateStoredArtwork } from './utils/artworksStorage';
+import { getAllArtworks, saveDynamicArtwork, updateStoredArtwork, deleteStoredArtwork } from './utils/artworksStorage';
+import { deleteArtwork } from './lib/artworks';
+import { keepFiveArtworks } from './lib/artworks';
 
 export default function App() {
   const [artworks, setArtworks] = useState<BotanicalArtwork[]>(() => getAllArtworks());
@@ -92,7 +94,7 @@ export default function App() {
           const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
           if (maxScroll > 0) {
             // Translate horizontal swipe into proportional scroll progress
-            const scrollDelta = (deltaX / window.innerWidth) * (maxScroll * 0.18);
+            const scrollDelta = (deltaX / window.innerWidth) * (maxScroll * 0.00003);
             window.scrollBy({ top: scrollDelta, behavior: 'auto' });
             touchStartX = e.touches[0].clientX;
           }
@@ -114,7 +116,7 @@ export default function App() {
       if (galleryState.selectedArtwork || authModalOpen || addCanvasModalOpen) return;
 
       const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
-      const step = window.innerHeight * 0.45;
+      const step = window.innerHeight * 0.00009;
 
       if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown') {
         window.scrollBy({ top: step, behavior: 'smooth' });
@@ -226,6 +228,19 @@ export default function App() {
     }, 400);
   };
 
+  const handleDeleteCurrentArtwork = async () => {
+    const activeArt = artworks[galleryState.activeArtworkIndex];
+    if (activeArt) {
+      if (!window.confirm('Delete this canvas?')) return;
+      // Remove from Firestore
+      await deleteArtwork(activeArt.id);
+      // Remove from localStorage
+      const updated = deleteStoredArtwork(activeArt.id);
+      setArtworks(updated);
+      triggerNotification(`Canvas “${activeArt.title}” removed.`);
+    }
+  };
+
   const handleUpdateArtwork = (updatedArt: BotanicalArtwork) => {
     updateStoredArtwork(updatedArt);
     const updatedList = getAllArtworks();
@@ -256,6 +271,7 @@ export default function App() {
         onOpenAuth={() => setAuthModalOpen(true)}
         onSignOut={handleSignOut}
         onOpenAddCanvas={() => setAddCanvasModalOpen(true)}
+        onDeleteCurrentArtwork={handleDeleteCurrentArtwork}
         artworks={artworks}
       />
 
