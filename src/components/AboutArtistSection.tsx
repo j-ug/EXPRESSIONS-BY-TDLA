@@ -81,22 +81,9 @@ export const AboutArtistSection: React.FC<AboutArtistSectionProps> = ({
               {ARTIST_INFO.statement}
             </p>
 
-            <p className="text-xs sm:text-sm text-[#735b47] leading-relaxed mb-6">
+            <p className="text-xs sm:text-sm text-[#735b47] leading-relaxed mb-8">
               {ARTIST_INFO.background}
             </p>
-
-            {/* Collaborator Spotlight */}
-            <div className="mb-8 p-4 rounded-2xl bg-[#fdfaf5] border border-[#e8dfd3] shadow-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-[#9e6d3d] font-semibold bg-[#f5ecdf] px-2 py-0.5 rounded-md">
-                  Co-Curator & Field Conservator
-                </span>
-              </div>
-              <h4 className="font-serif text-lg text-[#2d1f14] mb-1">Trevor</h4>
-              <p className="text-xs text-[#6e5138] leading-relaxed">
-                Collaborating directly with Dr. G. Ophylia Vinodhini, Trevor surveys montane forest trails and coastal estuaries to collect, press, and conserve complex vascular specimens. His specific curation of high-altitude ferns anchors the newer botanical panels in the 3D exhibition.
-              </p>
-            </div>
 
             {/* Direct Contact Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">

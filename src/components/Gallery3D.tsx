@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { BotanicalArtwork } from '../types';
 import { BOTANICAL_ARTWORKS } from '../data/artworks';
-import trevorImg from '../assets/images/trevor_philips_gta_v_1789930688489.jpg';
 import {
   createArtworkTexture,
   createPlasterTexture,
@@ -289,13 +288,57 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     const leafParticleTex = createLeafParticleTexture();
     const artworkObjects: ArtworkObject[] = [];
 
-    // Trevor GTA character sprite
-    const trevorTexture = new THREE.TextureLoader().load(trevorImg);
-    const trevorMaterial = new THREE.SpriteMaterial({ map: trevorTexture, transparent: true });
-    const trevorSprite = new THREE.Sprite(trevorMaterial);
-    trevorSprite.scale.set(3, 4.5, 1);
-    trevorSprite.position.set(-5, 2.25, 0); // Start position
-    scene.add(trevorSprite);
+    // --- Build Trevor (GTA Style) 3D Primitive Character ---
+    const trevorGroup = new THREE.Group();
+    
+    // Materials
+    const skinMat = new THREE.MeshStandardMaterial({ color: '#f1c27d', roughness: 0.8 });
+    const shirtMat = new THREE.MeshStandardMaterial({ color: '#e8e4d9', roughness: 0.9 }); // Dirty white
+    const jeansMat = new THREE.MeshStandardMaterial({ color: '#3a5a78', roughness: 0.8 }); // Denim blue
+    const shoeMat = new THREE.MeshStandardMaterial({ color: '#3d2b1f', roughness: 0.9 });
+
+    // Torso
+    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.8, 1.2, 0.4), shirtMat);
+    torso.position.y = 2.4;
+    trevorGroup.add(torso);
+
+    // Head
+    const head = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.5, 0.45), skinMat);
+    head.position.y = 3.3;
+    trevorGroup.add(head);
+
+    // Arms
+    const armL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.25), skinMat);
+    const armLGroup = new THREE.Group();
+    armLGroup.add(armL);
+    armL.position.y = -0.5; // Pivot from top
+    armLGroup.position.set(-0.55, 3.0, 0);
+    trevorGroup.add(armLGroup);
+
+    const armR = new THREE.Mesh(new THREE.BoxGeometry(0.25, 1.1, 0.25), skinMat);
+    const armRGroup = new THREE.Group();
+    armRGroup.add(armR);
+    armR.position.y = -0.5; 
+    armRGroup.position.set(0.55, 3.0, 0);
+    trevorGroup.add(armRGroup);
+
+    // Legs
+    const legL = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.4, 0.35), jeansMat);
+    const legLGroup = new THREE.Group();
+    legLGroup.add(legL);
+    legL.position.y = -0.7;
+    legLGroup.position.set(-0.25, 1.8, 0);
+    trevorGroup.add(legLGroup);
+
+    const legR = new THREE.Mesh(new THREE.BoxGeometry(0.35, 1.4, 0.35), jeansMat);
+    const legRGroup = new THREE.Group();
+    legRGroup.add(legR);
+    legR.position.y = -0.7;
+    legRGroup.position.set(0.25, 1.8, 0);
+    trevorGroup.add(legRGroup);
+
+    scene.add(trevorGroup);
+    // --- End Trevor Build ---
 
     // Artwork station X coordinates along the gallery wall
     const stationPositions = artworks.map((_, i) => -1 + i * 15); // Increased spacing for double-sided
@@ -736,10 +779,23 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
           targetCamY = 3.2;
           
-          // Trevor position update
-          trevorSprite.position.x = targetCamX + 2;
-          trevorSprite.position.z = Math.sin(time * 0.5) * 2;
-          trevorSprite.position.y = 2.25 + Math.abs(Math.sin(time * 5)) * 0.1; // Gentle walking bounce
+          // Trevor position update & animation
+          const walkSpeed = 5.0;
+          const walkCycle = Math.sin(time * walkSpeed);
+          
+          trevorGroup.position.x = targetCamX + 2.5;
+          trevorGroup.position.z = Math.sin(time * 0.5) * 1.5;
+          trevorGroup.position.y = Math.abs(Math.cos(time * walkSpeed * 2)) * 0.08; // Vertical bounce
+          
+          // Leg swing
+          legLGroup.rotation.x = walkCycle * 0.45;
+          legRGroup.rotation.x = -walkCycle * 0.45;
+          // Arm swing (opposite to legs)
+          armLGroup.rotation.x = -walkCycle * 0.35;
+          armRGroup.rotation.x = walkCycle * 0.35;
+          
+          // Trevor looks ahead or towards the art
+          trevorGroup.rotation.y = Math.PI / 2 + Math.sin(time * 0.3) * 0.2;
 
           const isOnBackWall = currIndex % 2 === 0;
           // Look at the correct wall based on active artwork
