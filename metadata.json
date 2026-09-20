@@ -1,0 +1,6 @@
+{
+  "name": "Dr. G. Ophylia Vinodhini — Botanical Art Gallery",
+  "description": "Interactive scroll-driven 3D botanical art gallery showcasing pressed leaf and floral landscape works by Dr. G. Ophylia Vinodhini in Tiruchy, Tamil Nadu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
