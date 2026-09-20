@@ -15,8 +15,7 @@ import { BotanicalArtwork, GalleryState, User } from './types';
 import { galleryAudio } from './utils/audio';
 import { getCurrentUser, logoutUser } from './utils/auth';
 import { getAllArtworks, saveDynamicArtwork, updateStoredArtwork, deleteStoredArtwork } from './utils/artworksStorage';
-import { deleteArtwork } from './lib/artworks';
-import { keepFiveArtworks } from './lib/artworks';
+import { deleteArtwork, keepFiveArtworks } from './lib/artworks';
 
 export default function App() {
   const [artworks, setArtworks] = useState<BotanicalArtwork[]>(() => getAllArtworks());
@@ -39,6 +38,18 @@ export default function App() {
 
   const [notification, setNotification] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  // Synchronize Firestore to only keep first 5 artworks on mount
+  useEffect(() => {
+    const pruneFirestore = async () => {
+      try {
+        await keepFiveArtworks();
+      } catch (e) {
+        console.error('Error pruning database to 5 artworks:', e);
+      }
+    };
+    pruneFirestore();
+  }, []);
 
   // Trigger non-intrusive notification banner
   const triggerNotification = useCallback((msg: string) => {

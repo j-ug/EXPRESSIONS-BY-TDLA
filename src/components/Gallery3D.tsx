@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import * as THREE from 'three';
 import { BotanicalArtwork } from '../types';
 import { BOTANICAL_ARTWORKS } from '../data/artworks';
+import trevorImg from '../assets/images/trevor_philips_gta_v_1789930688489.jpg';
 import {
   createArtworkTexture,
   createPlasterTexture,
@@ -148,6 +149,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     renderer.toneMappingExposure = 1.18;
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.autoUpdate = false;
+    renderer.shadowMap.needsUpdate = true;
 
     // Ensure canvas element is block-level to avoid ResizeObserver feedback loops
     renderer.domElement.style.display = 'block';
@@ -286,13 +289,29 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     const leafParticleTex = createLeafParticleTexture();
     const artworkObjects: ArtworkObject[] = [];
 
+    // Trevor GTA character sprite
+    const trevorTexture = new THREE.TextureLoader().load(trevorImg);
+    const trevorMaterial = new THREE.SpriteMaterial({ map: trevorTexture, transparent: true });
+    const trevorSprite = new THREE.Sprite(trevorMaterial);
+    trevorSprite.scale.set(3, 4.5, 1);
+    trevorSprite.position.set(-5, 2.25, 0); // Start position
+    scene.add(trevorSprite);
+
     // Artwork station X coordinates along the gallery wall
-    const stationPositions = artworks.map((_, i) => -1 + i * 10);
+    const stationPositions = artworks.map((_, i) => -1 + i * 15); // Increased spacing for double-sided
 
     artworks.forEach((art, index) => {
       const xPos = stationPositions[index];
       const artGroup = new THREE.Group();
-      artGroup.position.set(xPos, 3.2, -initialWidth / 2 + 0.15);
+      
+      // Alternate walls: 0, 2, 4 on back wall (z < 0), 1, 3 on front wall (z > 0)
+      const isOnBackWall = index % 2 === 0;
+      const zPos = isOnBackWall ? -initialWidth / 2 + 0.15 : initialWidth / 2 - 0.15;
+      
+      artGroup.position.set(xPos, 3.2, zPos);
+      if (!isOnBackWall) {
+        artGroup.rotation.y = Math.PI; // Face the other way
+      }
       scene.add(artGroup);
 
       // Artwork Canvas Texture with 16x anisotropic filtering for razor-sharp botanical veins
@@ -347,22 +366,20 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       frontFillLight.position.set(0, 0, 2.2);
       artGroup.add(frontFillLight);
 
-      // 1. Handcrafted Futuristic Y2K Plastic Outer Frame
+      // 1. Handcrafted Elegant Premium Satin Black Frame
       const frameMat = new THREE.MeshPhysicalMaterial({
-        color: '#ff00ff', // Y2K neon pink
+        color: '#111111', // Matte black
         metalness: 0.1,
-        roughness: 0.1,
-        transmission: 0.5,
-        thickness: 0.5,
+        roughness: 0.45,  // Satin texture
+        clearcoat: 0.1,   // Subtle protective layer
+        clearcoatRoughness: 0.3,
         side: THREE.DoubleSide
       });
 
-      // 2. Neon Cyan Fillet Liner
+      // 2. Sophisticated Soft Black Fillet Liner
       const filletMat = new THREE.MeshStandardMaterial({
-        color: '#00ffff', // Y2K neon cyan
-        emissive: '#00ffff',
-        emissiveIntensity: 0.5,
-        roughness: 0.2,
+        color: '#222222', // Sophisticated charcoal black
+        roughness: 0.6,
       });
 
       if (art.frameShape === 'circular') {
@@ -435,18 +452,19 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
       // Small Museum Spotlight directed at artwork position (independent target)
       const spotTarget = new THREE.Object3D();
-      spotTarget.position.set(xPos, 3.2, -initialWidth / 2 + 0.15);
+      spotTarget.position.set(xPos, 3.2, zPos);
       scene.add(spotTarget);
 
       const spotLight = new THREE.SpotLight('#fff4e0', 1.8, 12, Math.PI / 6, 0.45, 1.2);
-      spotLight.position.set(xPos, wallHeight - 0.4, -initialWidth / 2 + 3.2);
+      const spotZOffset = isOnBackWall ? 3.2 : -3.2;
+      spotLight.position.set(xPos, wallHeight - 0.4, zPos + spotZOffset);
       spotLight.target = spotTarget;
       // Do not cast shadows on per-artwork spotlights to keep texture units well under WebGL limit (16)
       spotLight.castShadow = false;
       scene.add(spotLight);
 
       // Disintegration Particle System (leaves and floral petals)
-      const particleCount = 650;
+      const particleCount = 120;
       const particleGeo = new THREE.BufferGeometry();
       const pPositions = new Float32Array(particleCount * 3);
       const pOriginals = new Float32Array(particleCount * 3);
@@ -513,37 +531,13 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
     // Mouse Move Parallax & Raycast Listener (on container element, not window)
     const onPointerMove = (e: MouseEvent) => {
-      if (!containerRef.current || !cameraRef.current) return;
+      if (!containerRef.current) return;
       const rect = containerRef.current.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
 
       const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
       const normY = -(((e.clientY - rect.top) / rect.height) * 2 - 1);
       mouseTargetRef.current = { x: normX, y: normY };
-
-      // Raycast for hover state on artworks
-      try {
-        const mouseVector = new THREE.Vector2(normX, normY);
-        const raycaster = new THREE.Raycaster();
-        raycaster.setFromCamera(mouseVector, cameraRef.current);
-
-        const meshesToTest = artworkObjectsRef.current.map((o) => o.canvasMesh);
-        const intersects = raycaster.intersectObjects(meshesToTest);
-
-        if (intersects.length > 0) {
-          const hit = intersects[0].object;
-          const artIndex = hit.userData.artworkIndex;
-          if (artIndex !== undefined && artworks[artIndex]) {
-            setHoveredArtwork(artworks[artIndex]);
-            if (containerRef.current) containerRef.current.style.cursor = 'pointer';
-          }
-        } else {
-          setHoveredArtwork(null);
-          if (containerRef.current) containerRef.current.style.cursor = 'default';
-        }
-      } catch {
-        // Suppress any raycaster edge errors
-      }
     };
 
     const onPointerClick = (e: MouseEvent) => {
@@ -623,6 +617,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     let lastAnnouncedIndex = -1;
     let hasEntered = false;
     let hasExited = false;
+    let lastP = -1;
 
     const animate = () => {
       if (isDisposed) return;
@@ -637,6 +632,36 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       mouseCurrentRef.current.y += (mouseTargetRef.current.y - mouseCurrentRef.current.y) * 0.05;
 
       const p = Math.max(0, Math.min(1, scrollSmoothRef.current || 0)); // 0.0 to 1.0
+
+      // Only update shadow map when scroll progress changes (i.e. when walls move)
+      if (Math.abs(p - lastP) > 0.0001) {
+        renderer.shadowMap.needsUpdate = true;
+        lastP = p;
+      }
+
+      // Run hover raycaster once per frame in animate loop
+      try {
+        const mouseVector = new THREE.Vector2(mouseCurrentRef.current.x, mouseCurrentRef.current.y);
+        const raycaster = new THREE.Raycaster();
+        raycaster.setFromCamera(mouseVector, camera);
+
+        const meshesToTest = artworkObjects.map((o) => o.canvasMesh);
+        const intersects = raycaster.intersectObjects(meshesToTest);
+
+        if (intersects.length > 0) {
+          const hit = intersects[0].object;
+          const artIndex = hit.userData.artworkIndex;
+          if (artIndex !== undefined && artworks[artIndex]) {
+            setHoveredArtwork(artworks[artIndex]);
+            if (containerRef.current) containerRef.current.style.cursor = 'pointer';
+          }
+        } else {
+          setHoveredArtwork(null);
+          if (containerRef.current) containerRef.current.style.cursor = 'default';
+        }
+      } catch {
+        // Suppress
+      }
 
       // 8a. Gallery Doorway Entry Logic
       if (p > 0.08 && !hasEntered) {
@@ -670,7 +695,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       let targetCamZ = 24;
       let targetLookX = 0;
       let targetLookY = 2.8;
-      let targetLookZ = -currentWidth / 2;
+      let targetLookZ = 0;
 
       const numArtworks = artworkObjects.length;
 
@@ -682,9 +707,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         targetCamZ = THREE.MathUtils.lerp(24, 2.5, t);
         targetLookX = THREE.MathUtils.lerp(0, -1, t);
         targetLookY = THREE.MathUtils.lerp(2.8, 3.2, t);
-        targetLookZ = -currentWidth / 2;
+        targetLookZ = 0;
       } else if (p < 0.88 && numArtworks > 0) {
-        // Scrolling along the gallery wall from artwork 0 to artwork 4
+        // Scrolling along the gallery wall
         const galleryT = Math.max(0, Math.min(1, (p - 0.14) / (0.88 - 0.14)));
         const rawArtworkPos = galleryT * (numArtworks - 1);
         const currIndex = Math.max(0, Math.min(Math.floor(rawArtworkPos), numArtworks - 1));
@@ -710,13 +735,20 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
           targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
           targetCamY = 3.2;
-          // Refined camera distance (3.95m from wall) so the entire frame, moldings, wall halo, and plaque are properly visible
-          targetCamZ = -currentWidth / 2 + 3.95;
+          
+          // Trevor position update
+          trevorSprite.position.x = targetCamX + 2;
+          trevorSprite.position.z = Math.sin(time * 0.5) * 2;
+          trevorSprite.position.y = 2.25 + Math.abs(Math.sin(time * 5)) * 0.1; // Gentle walking bounce
 
-          // Directly look squarely at the artwork center and frame
+          const isOnBackWall = currIndex % 2 === 0;
+          // Look at the correct wall based on active artwork
+          targetCamZ = isOnBackWall ? -currentWidth / 2 + 5.5 : currentWidth / 2 - 5.5;
+
+          // Directly look squarely at the artwork center
           targetLookX = targetCamX;
           targetLookY = 3.08;
-          targetLookZ = -currentWidth / 2 + 0.15;
+          targetLookZ = isOnBackWall ? -currentWidth / 2 + 0.15 : currentWidth / 2 - 0.15;
         }
 
         // Trigger active artwork index callback

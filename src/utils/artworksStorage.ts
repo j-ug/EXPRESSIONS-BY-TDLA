@@ -1,4 +1,5 @@
 import { BotanicalArtwork } from '../types';
+import { BOTANICAL_ARTWORKS } from '../data/artworks';
 
 const ARTWORKS_STORAGE_KEY = 'botanical_gallery_artworks';
 
@@ -7,15 +8,21 @@ export function getStoredArtworks(): BotanicalArtwork[] {
     const raw = localStorage.getItem(ARTWORKS_STORAGE_KEY);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Strictly only keep the default 5 artworks for verification
+        const filtered = parsed.filter(art => 
+          BOTANICAL_ARTWORKS.some(b => b.id === art.id)
+        );
+        if (filtered.length > 0) {
+          return filtered;
+        }
       }
     }
-    // Default to empty array as requested by user
-    localStorage.setItem(ARTWORKS_STORAGE_KEY, JSON.stringify([]));
-    return [];
+    // Default to the 5 default artworks
+    localStorage.setItem(ARTWORKS_STORAGE_KEY, JSON.stringify(BOTANICAL_ARTWORKS));
+    return BOTANICAL_ARTWORKS;
   } catch {
-    return [];
+    return BOTANICAL_ARTWORKS;
   }
 }
 

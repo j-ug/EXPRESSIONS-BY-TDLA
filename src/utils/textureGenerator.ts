@@ -100,6 +100,14 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
     renderPalmyraTheme(ctx);
   } else if (theme === 'vilvam_monsoon') {
     renderVilvamTheme(ctx);
+  } else if (theme === 'neem_heritage') {
+    renderNeemTheme(ctx);
+  } else if (theme === 'jasmine_malli') {
+    renderJasmineTheme(ctx);
+  } else if (theme === 'banyan_sacred') {
+    renderBanyanTheme(ctx);
+  } else if (theme === 'fern_synthesis') {
+    renderFernTheme(ctx);
   } else {
     renderGulmoharTheme(ctx);
   }
@@ -520,6 +528,245 @@ function renderGulmoharTheme(ctx: CanvasRenderingContext2D) {
   ctx.font = 'italic 14px "Cormorant Garamond", Georgia, serif';
   ctx.fillStyle = 'rgba(120, 70, 50, 0.7)';
   ctx.fillText('Summer post-thunderstorm canopy petals paired with tamarind foliage', 270, 915);
+}
+
+function renderNeemTheme(ctx: CanvasRenderingContext2D) {
+  const cx = 512;
+  const cy = 490;
+
+  // Soft olive-green botanical wash
+  const wash = ctx.createRadialGradient(cx, cy, 30, cx, cy, 400);
+  wash.addColorStop(0, 'rgba(120, 140, 95, 0.22)');
+  wash.addColorStop(0.6, 'rgba(100, 110, 80, 0.08)');
+  wash.addColorStop(1, 'rgba(237, 231, 220, 0)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Draw a curved branch with multiple pinnate, serrated leaves
+  ctx.beginPath();
+  ctx.moveTo(-150, 220);
+  ctx.quadraticCurveTo(50, 50, 180, -220);
+  ctx.strokeStyle = '#4e5438';
+  ctx.lineWidth = 3.5;
+  ctx.stroke();
+
+  // Draw leaves along the branch stem
+  for (let i = 0; i < 11; i++) {
+    const t = i / 10;
+    const lx = -150 + (180 - (-150)) * t;
+    const ly = 220 + (-220 - 220) * t;
+    const leafSize = 45 - t * 20;
+
+    // Alternating left/right leaves
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(0.6 + t * 0.4);
+    drawSingleLeaf(ctx, 15, -10, leafSize, leafSize * 2.5, '#2e452a', '#4a6b41');
+    ctx.restore();
+
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(-0.6 - t * 0.4);
+    drawSingleLeaf(ctx, -15, -10, leafSize, leafSize * 2.5, '#2e452a', '#4a6b41');
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // Caption
+  ctx.font = '400 18px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(50, 65, 45, 0.8)';
+  ctx.fillText('Azadirachta indica — Ancient Vembu Medicine', 300, 890);
+  ctx.font = 'italic 14px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(75, 90, 70, 0.7)';
+  ctx.fillText('Pressed compound serrated neem foliage collected from clean rural groves', 270, 915);
+}
+
+function renderJasmineTheme(ctx: CanvasRenderingContext2D) {
+  const cx = 512;
+  const cy = 490;
+
+  // Soft jasmine yellow-gold wash
+  const wash = ctx.createRadialGradient(cx, cy, 30, cx, cy, 420);
+  wash.addColorStop(0, 'rgba(235, 215, 140, 0.25)');
+  wash.addColorStop(0.6, 'rgba(210, 190, 120, 0.08)');
+  wash.addColorStop(1, 'rgba(237, 231, 220, 0)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Draw a circular flower mandalic wreath
+  const flowerCount = 12;
+  for (let i = 0; i < flowerCount; i++) {
+    const angle = (i * Math.PI * 2) / flowerCount;
+    const r = 180 + Math.sin(i * 1.5) * 20;
+    const fx = Math.cos(angle) * r;
+    const fy = Math.sin(angle) * r;
+
+    ctx.save();
+    ctx.translate(fx, fy);
+    ctx.rotate(angle);
+
+    // 5 pure white jasmine petals
+    for (let p = 0; p < 5; p++) {
+      ctx.rotate((Math.PI * 2) / 5);
+      ctx.beginPath();
+      ctx.ellipse(0, -15, 7, 20, 0, 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255, 255, 253, 0.95)';
+      ctx.fill();
+    }
+    // Golden center pip
+    ctx.beginPath();
+    ctx.arc(0, 0, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#cca128';
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  // Draw delicate stems linking them
+  ctx.beginPath();
+  ctx.arc(0, 0, 180, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(65, 95, 60, 0.25)';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  ctx.restore();
+
+  // Caption
+  ctx.font = '400 18px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(70, 55, 30, 0.8)';
+  ctx.fillText('Jasminum sambac — Madurai Gundu Malli', 300, 890);
+  ctx.font = 'italic 14px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(110, 95, 70, 0.7)';
+  ctx.fillText('Symmetrical ring configuration of dawn-opened fragrant temple buds', 270, 915);
+}
+
+function renderBanyanTheme(ctx: CanvasRenderingContext2D) {
+  const cx = 512;
+  const cy = 490;
+
+  // Deep forest green and golden-bark wash
+  const wash = ctx.createRadialGradient(cx, cy, 30, cx, cy, 400);
+  wash.addColorStop(0, 'rgba(80, 95, 60, 0.22)');
+  wash.addColorStop(0.6, 'rgba(110, 90, 70, 0.08)');
+  wash.addColorStop(1, 'rgba(237, 231, 220, 0)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Vertical hanging aerial root structures
+  ctx.strokeStyle = 'rgba(95, 75, 55, 0.75)';
+  ctx.lineWidth = 5;
+  for (let r = -3; r <= 3; r++) {
+    const rx = r * 80;
+    ctx.beginPath();
+    ctx.moveTo(rx, -240);
+    ctx.quadraticCurveTo(rx + r * 15, 0, rx - r * 10, 240);
+    ctx.stroke();
+  }
+
+  // Large glossy banyan leaves layered over roots
+  const leafCount = 8;
+  for (let i = 0; i < leafCount; i++) {
+    const angle = (i * Math.PI * 2) / leafCount;
+    const lx = Math.cos(angle) * 120;
+    const ly = Math.sin(angle) * 100;
+    ctx.save();
+    ctx.translate(lx, ly);
+    ctx.rotate(angle + Math.PI / 4);
+    drawSingleLeaf(ctx, 0, 0, 60, 120, '#1c3d25', '#345e3c');
+    ctx.restore();
+  }
+
+  ctx.restore();
+
+  // Caption
+  ctx.font = '400 18px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(55, 45, 35, 0.8)';
+  ctx.fillText('Ficus benghalensis L. — Rockfort Aalam Roots', 300, 890);
+  ctx.font = 'italic 14px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(90, 80, 70, 0.7)';
+  ctx.fillText('Thick leather pressed banyan leaves layered with micro-peeled aerial bark', 270, 915);
+}
+
+function renderFernTheme(ctx: CanvasRenderingContext2D) {
+  const cx = 512;
+  const cy = 480;
+
+  // Cool jungle teal & emerald wash for Trevor's specific fern synthesis
+  const wash = ctx.createRadialGradient(cx, cy, 30, cx, cy, 410);
+  wash.addColorStop(0, 'rgba(45, 115, 100, 0.24)');
+  wash.addColorStop(0.6, 'rgba(35, 80, 70, 0.08)');
+  wash.addColorStop(1, 'rgba(237, 231, 220, 0)');
+  ctx.fillStyle = wash;
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  ctx.save();
+  ctx.translate(cx, cy);
+
+  // Draw main central curving fern frond
+  ctx.beginPath();
+  ctx.moveTo(0, 260);
+  ctx.quadraticCurveTo(-80, -20, 20, -320);
+  ctx.strokeStyle = '#2b5243';
+  ctx.lineWidth = 4;
+  ctx.stroke();
+
+  // Symmetric pinnules along the spine
+  const pinnuleCount = 20;
+  for (let i = 0; i < pinnuleCount; i++) {
+    const t = i / pinnuleCount;
+    // Calculate position along the bezier curve
+    const ax = 0 * (1 - t) * (1 - t) + (-80) * 2 * (1 - t) * t + 20 * t * t;
+    const ay = 260 * (1 - t) * (1 - t) + (-20) * 2 * (1 - t) * t + (-320) * t * t;
+    
+    const size = 50 - t * 35;
+
+    // Draw left pinnule
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(-1.2 + t * 0.4);
+    drawSingleLeaf(ctx, -size / 2, 0, size * 0.4, size, '#1e382c', '#2c5e46');
+    ctx.restore();
+
+    // Draw right pinnule
+    ctx.save();
+    ctx.translate(ax, ay);
+    ctx.rotate(1.2 - t * 0.4);
+    drawSingleLeaf(ctx, size / 2, 0, size * 0.4, size, '#1e382c', '#2c5e46');
+    ctx.restore();
+  }
+
+  // Draw some delicate companion ferns
+  ctx.save();
+  ctx.scale(0.5, 0.5);
+  ctx.rotate(0.5);
+  ctx.translate(200, 200);
+  ctx.beginPath();
+  ctx.moveTo(0, 200);
+  ctx.quadraticCurveTo(-50, 0, 10, -200);
+  ctx.strokeStyle = 'rgba(40, 80, 60, 0.5)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+
+  // Caption
+  ctx.font = '400 18px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(40, 60, 50, 0.8)';
+  ctx.fillText('Nephrolepis exaltata — Trevor\'s Fern Synthesis', 310, 890);
+  ctx.font = 'italic 14px "Cormorant Garamond", Georgia, serif';
+  ctx.fillStyle = 'rgba(70, 90, 80, 0.7)';
+  ctx.fillText('Vascular specimen mounted in co-curated collaboration with Field Curator Trevor', 270, 915);
 }
 
 function drawSingleLeaf(
