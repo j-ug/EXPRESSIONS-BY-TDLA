@@ -26,13 +26,12 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
 }) => {
   const [title, setTitle] = useState('');
   const [tamilTitle, setTamilTitle] = useState('');
-  const [species, setSpecies] = useState('');
+  const [price, setPrice] = useState('₹18,500');
   const [medium, setMedium] = useState('');
   const [dimensions, setDimensions] = useState('70 × 55 cm');
   const [year, setYear] = useState('2024');
   const [frameShape, setFrameShape] = useState<FrameShape>('rectangle');
   const [biasLightColor, setBiasLightColor] = useState('#608050');
-  const [textureTheme, setTextureTheme] = useState<'peepal_sacred' | 'lotus_kaveri' | 'palmyra_sun' | 'vilvam_monsoon' | 'jasmine_malli'>('peepal_sacred');
   const [customImageData, setCustomImageData] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState('');
   const [inspiration, setInspiration] = useState('');
@@ -71,18 +70,14 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
       return;
     }
 
-    const speciesArray = species
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean);
-
     const newArt: Omit<BotanicalArtwork, 'id'> = {
       title: title.trim(),
       tamilTitle: tamilTitle.trim() || undefined,
-      botanicalSpecies: speciesArray.length > 0 ? speciesArray : ['Botanical specimen leaves', 'Natural pigments'],
+      botanicalSpecies: ['Pressed indigenous flora', 'Natural leaf specimens'],
       medium: medium.trim(),
       dimensions: dimensions.trim() || '65 × 85 cm',
       year: year.trim() || '2024',
+      price: price.trim() || '₹18,500',
       frameShape,
       biasLightColor,
       biasLightIntensity: 2.0,
@@ -93,7 +88,7 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
         inspiration.trim() ||
         'Curated botanical specimen preserving floral cellular venation from the Kaveri basin landscape.',
       panelPosition: 'below',
-      textureTheme,
+      textureTheme: customImageData ? 'custom' : 'peepal_sacred',
       customImageData,
       createdBy: 'Curator Admin',
     };
@@ -170,16 +165,17 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-            <div className="sm:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+            <div>
               <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
-                Botanical Species (Comma separated)
+                Price / Acquisition Value *
               </label>
               <input
                 type="text"
-                value={species}
-                onChange={(e) => setSpecies(e.target.value)}
-                placeholder="Ocimum tenuiflorum (Tulsi), Nelumbo nucifera (Lotus)"
+                required
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="e.g. ₹22,000 or $280"
                 className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
               />
             </div>
@@ -227,41 +223,22 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
             </div>
           </div>
 
-          {/* Frame Shape & Texture Generator Preset */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
-            <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
-                Architectural Frame Molding
-              </label>
-              <select
-                value={frameShape}
-                onChange={(e) => setFrameShape(e.target.value as FrameShape)}
-                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
-              >
-                <option value="rectangle">Classic Rectangle (Walnut Molding)</option>
-                <option value="square">Concentric Square Mount</option>
-                <option value="circular">Sacred Circular Tondo Frame</option>
-                <option value="arched">Cathedral Arched Vault Mount</option>
-                <option value="leaf">Organic Leaf Silhouette</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
-                Botanical Rendering Preset
-              </label>
-              <select
-                value={textureTheme}
-                onChange={(e) => setTextureTheme(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
-              >
-                <option value="peepal_sacred">Bodhi Peepal Vein & Madder</option>
-                <option value="lotus_kaveri">Kaveri Temple Lotus Bloom</option>
-                <option value="palmyra_sun">Palmyra Sunlit Frond Geometry</option>
-                <option value="vilvam_monsoon">Vilvam Trifoliate Sacred Canopy</option>
-                <option value="jasmine_malli">Gulmohar Scarlet & Jasmine Sepals</option>
-              </select>
-            </div>
+          {/* Frame Shape Molding */}
+          <div>
+            <label className="block text-[11px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+              Architectural Frame Molding
+            </label>
+            <select
+              value={frameShape}
+              onChange={(e) => setFrameShape(e.target.value as FrameShape)}
+              className="w-full px-3 py-2 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+            >
+              <option value="rectangle">Classic Rectangle (Walnut Molding)</option>
+              <option value="square">Concentric Square Mount</option>
+              <option value="circular">Sacred Circular Tondo Frame</option>
+              <option value="arched">Cathedral Arched Vault Mount</option>
+              <option value="leaf">Organic Leaf Silhouette</option>
+            </select>
           </div>
 
           {/* Bias Lighting Color */}

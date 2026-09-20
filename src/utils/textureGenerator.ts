@@ -43,6 +43,12 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   ctx.lineWidth = 2;
   ctx.strokeRect(42, 42, 940, 940);
 
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.anisotropy = 16;
+
   // If user provided a custom image, draw it onto the deckled canvas
   if (customImageData) {
     const img = new Image();
@@ -63,6 +69,7 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
       const drawX = (1024 - drawW) / 2;
       const drawY = (1024 - drawH) / 2;
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      texture.needsUpdate = true;
     } else {
       // Setup onload for asynchronous image loading
       img.onload = () => {
@@ -104,9 +111,7 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   ctx.textAlign = 'right';
   ctx.fillText('Dr. G. Ophylia Vinodhini • Trichy', 964, 970);
 
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.needsUpdate = true;
   textureCache.set(cacheKey, texture);
   return texture;
 }
@@ -691,3 +696,77 @@ export function createLeafParticleTexture(): THREE.CanvasTexture {
 
   return new THREE.CanvasTexture(canvas);
 }
+
+/**
+ * Creates an authentic high-resolution vellum and brass museum wall plaque texture
+ */
+export function createMuseumPlaqueTexture(art: {
+  title: string;
+  tamilTitle?: string;
+  medium: string;
+  year: number | string;
+  dimensions: string;
+  price?: string;
+}): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 256;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    // Elegant warm ivory vellum background with subtle brushed metallic rim
+    const grad = ctx.createLinearGradient(0, 0, 512, 256);
+    grad.addColorStop(0, '#fdfbf7');
+    grad.addColorStop(0.5, '#f6efe4');
+    grad.addColorStop(1, '#ebe0cf');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 512, 256);
+
+    // Antiqued brass frame border
+    ctx.strokeStyle = '#8f6f47';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(6, 6, 500, 244);
+
+    ctx.strokeStyle = '#c9a877';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(14, 14, 484, 228);
+
+    // Title
+    ctx.fillStyle = '#26190f';
+    ctx.font = 'bold 24px Georgia, "Cormorant Garamond", serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    ctx.fillText(art.title, 256, 26);
+
+    let currentY = 58;
+    if (art.tamilTitle) {
+      ctx.fillStyle = '#6e5138';
+      ctx.font = '16px serif';
+      ctx.fillText(art.tamilTitle, 256, currentY);
+      currentY += 26;
+    }
+
+    // Medium & Year
+    ctx.fillStyle = '#523c2a';
+    ctx.font = 'italic 14px Georgia, serif';
+    const shortMedium = art.medium.length > 44 ? art.medium.substring(0, 42) + '…' : art.medium;
+    ctx.fillText(`${shortMedium} • ${art.year}`, 256, currentY);
+    currentY += 26;
+
+    // Price & Dimensions
+    ctx.fillStyle = '#85582f';
+    ctx.font = 'bold 18px monospace';
+    ctx.fillText(`${art.dimensions}  |  ${art.price || '₹18,500'}`, 256, currentY);
+    currentY += 28;
+
+    // Museum Provenance Seal
+    ctx.fillStyle = '#9e8164';
+    ctx.font = '10px monospace';
+    ctx.fillText('HERBARIUM ARCHIVE • TIRUCHIRAPPALLI', 256, currentY + 4);
+  }
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.generateMipmaps = true;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  return tex;
+}
+

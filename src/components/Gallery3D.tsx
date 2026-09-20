@@ -8,6 +8,7 @@ import {
   createFloorTexture,
   createBiasLightGlowTexture,
   createLeafParticleTexture,
+  createMuseumPlaqueTexture,
 } from '../utils/textureGenerator';
 
 interface Gallery3DProps {
@@ -293,38 +294,48 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       artGroup.position.set(xPos, 3.2, -initialWidth / 2 + 0.15);
       scene.add(artGroup);
 
-      // Artwork Canvas Texture
+      // Artwork Canvas Texture with 16x anisotropic filtering for razor-sharp botanical veins
       const artTexture = createArtworkTexture(art.textureTheme, art.customImageData);
+      if (renderer) {
+        artTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 16);
+      }
+      artTexture.generateMipmaps = true;
+      artTexture.minFilter = THREE.LinearMipmapLinearFilter;
+      artTexture.magFilter = THREE.LinearFilter;
+      artTexture.needsUpdate = true;
 
-      // Frame Dimensions based on artwork frameShape
-      let frameW = 2.4;
-      let frameH = 3.1;
+      // Frame Dimensions based on artwork frameShape (minimized so entire frame is properly visible)
+      let frameW = 2.0;
+      let frameH = 2.7;
       let frameGeometry: THREE.BufferGeometry;
 
       if (art.frameShape === 'square') {
-        frameW = 2.6;
-        frameH = 2.6;
+        frameW = 2.1;
+        frameH = 2.1;
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
       } else if (art.frameShape === 'leaf' || art.frameShape === 'arched') {
-        frameW = 2.3;
-        frameH = 3.3;
+        frameW = 1.95;
+        frameH = 2.7;
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
       } else if (art.frameShape === 'circular') {
-        frameW = 2.7;
-        frameH = 2.7;
+        frameW = 2.2;
+        frameH = 2.2;
         frameGeometry = new THREE.CylinderGeometry(frameW / 2, frameW / 2, 0.08, 48);
         frameGeometry.rotateX(Math.PI / 2);
       } else {
-        frameW = 2.5;
-        frameH = 3.3;
+        frameW = 2.0;
+        frameH = 2.7;
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
       }
 
-      // Canvas Face Mesh with subtle relief and luster
+      // Canvas Face Mesh with pristine botanical clarity & subtle self-illumination
       const canvasMat = new THREE.MeshStandardMaterial({
         map: artTexture,
-        roughness: 0.45,
-        metalness: 0.1,
+        roughness: 0.52,
+        metalness: 0.04,
+        emissive: new THREE.Color('#ffffff'),
+        emissiveMap: artTexture,
+        emissiveIntensity: 0.32, // Maintains vivid colors and micro-details when camera is moving and at glancing angles
       });
 
       const canvasMesh = new THREE.Mesh(frameGeometry, canvasMat);
@@ -333,26 +344,80 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       canvasMesh.userData = { artworkIndex: index, artwork: art };
       artGroup.add(canvasMesh);
 
-      // Frame border molding (warm walnut and antiqued bronze)
-      const borderMat = new THREE.MeshStandardMaterial({
-        color: '#463222',
+      // Dedicated warm front illumination fill light so botanical details pop clearly in motion
+      const frontFillLight = new THREE.PointLight('#fffbf0', 1.25, 7.5, 1.2);
+      frontFillLight.position.set(0, 0, 2.2);
+      artGroup.add(frontFillLight);
+
+      // 1. Handcrafted Walnut Outer Frame Molding
+      const walnutMat = new THREE.MeshStandardMaterial({
+        color: '#382516',
         roughness: 0.38,
-        metalness: 0.28,
+        metalness: 0.2,
+      });
+
+      // 2. Antiqued Gold / Brass Fillet Liner
+      const brassFilletMat = new THREE.MeshStandardMaterial({
+        color: '#c9a15b',
+        roughness: 0.28,
+        metalness: 0.72,
       });
 
       if (art.frameShape === 'circular') {
-        const ringGeo = new THREE.TorusGeometry(frameW / 2 + 0.04, 0.05, 16, 64);
-        const ringMesh = new THREE.Mesh(ringGeo, borderMat);
-        ringMesh.position.z = 0.02;
-        artGroup.add(ringMesh);
+        // Outer walnut torus molding
+        const outerTorus = new THREE.TorusGeometry(frameW / 2 + 0.08, 0.07, 20, 64);
+        const outerMesh = new THREE.Mesh(outerTorus, walnutMat);
+        outerMesh.position.z = 0.01;
+        artGroup.add(outerMesh);
+
+        // Inner brass fillet liner ring
+        const innerTorus = new THREE.TorusGeometry(frameW / 2 + 0.015, 0.03, 16, 64);
+        const innerMesh = new THREE.Mesh(innerTorus, brassFilletMat);
+        innerMesh.position.z = 0.03;
+        artGroup.add(innerMesh);
       } else {
-        const frameBox = new THREE.Mesh(
-          new THREE.BoxGeometry(frameW + 0.14, frameH + 0.14, 0.06),
-          borderMat
+        // Outer walnut frame box
+        const outerFrame = new THREE.Mesh(
+          new THREE.BoxGeometry(frameW + 0.22, frameH + 0.22, 0.09),
+          walnutMat
         );
-        frameBox.position.z = -0.02;
-        artGroup.add(frameBox);
+        outerFrame.position.z = -0.015;
+        artGroup.add(outerFrame);
+
+        // Inner brass fillet liner
+        const innerFillet = new THREE.Mesh(
+          new THREE.BoxGeometry(frameW + 0.05, frameH + 0.05, 0.095),
+          brassFilletMat
+        );
+        innerFillet.position.z = 0.01;
+        artGroup.add(innerFillet);
       }
+
+      // Soft Wall Cast Shadow Behind Frame
+      const shadowMat = new THREE.MeshBasicMaterial({
+        color: '#1a120b',
+        transparent: true,
+        opacity: 0.28,
+      });
+      const shadowPlane = new THREE.Mesh(
+        new THREE.PlaneGeometry(frameW + 0.45, frameH + 0.45),
+        shadowMat
+      );
+      shadowPlane.position.set(0.04, -0.06, -0.05);
+      artGroup.add(shadowPlane);
+
+      // Museum Wall Label Plaque mounted right beneath the frame
+      const plaqueTex = createMuseumPlaqueTexture(art);
+      const plaqueMat = new THREE.MeshStandardMaterial({
+        map: plaqueTex,
+        roughness: 0.38,
+        metalness: 0.18,
+      });
+      const plaqueGeo = new THREE.BoxGeometry(0.72, 0.36, 0.025);
+      const plaqueMesh = new THREE.Mesh(plaqueGeo, plaqueMat);
+      plaqueMesh.position.set(0, -frameH / 2 - 0.38, 0.015);
+      plaqueMesh.castShadow = true;
+      artGroup.add(plaqueMesh);
 
       // Dedicated Bias Lighting (Glow Halo mesh + PointLight behind canvas)
       const glowTex = createBiasLightGlowTexture(art.biasLightColor);
@@ -637,14 +702,28 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         const nextArt = artworkObjects[nextIndex];
 
         if (currentArt && nextArt) {
-          targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, fraction);
-          const yOffsets = [3.0, 3.1, 2.9, 3.2, 3.0];
-          targetCamY = yOffsets[currIndex] ?? 3.0;
-          targetCamZ = -currentWidth / 2 + 4.6;
+          // Smooth plateau easing so camera pauses stably in front of each artwork while walking
+          let smoothFraction = fraction;
+          if (fraction < 0.22) {
+            const t = fraction / 0.22;
+            smoothFraction = 0.04 * (t * t);
+          } else if (fraction > 0.78) {
+            const t = (fraction - 0.78) / 0.22;
+            smoothFraction = 0.96 + 0.04 * (1 - (1 - t) * (1 - t));
+          } else {
+            const t = (fraction - 0.22) / 0.56;
+            smoothFraction = 0.04 + 0.92 * (t * t * (3 - 2 * t));
+          }
 
+          targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
+          targetCamY = 3.2;
+          // Refined camera distance (3.95m from wall) so the entire frame, moldings, wall halo, and plaque are properly visible
+          targetCamZ = -currentWidth / 2 + 3.95;
+
+          // Directly look squarely at the artwork center and frame
           targetLookX = targetCamX;
-          targetLookY = 3.2;
-          targetLookZ = -currentWidth / 2;
+          targetLookY = 3.08;
+          targetLookZ = -currentWidth / 2 + 0.15;
         }
 
         // Trigger active artwork index callback
@@ -658,8 +737,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         const exitT = Math.max(0, Math.min(1, (p - 0.88) / 0.12));
         const lastStationX = artworkObjects.length > 0 ? artworkObjects[artworkObjects.length - 1].xStation : 39;
         targetCamX = THREE.MathUtils.lerp(lastStationX, lastStationX + 9, exitT);
-        targetCamY = THREE.MathUtils.lerp(3.0, 3.2, exitT);
-        targetCamZ = THREE.MathUtils.lerp(-currentWidth / 2 + 4.6, 6, exitT);
+        targetCamY = THREE.MathUtils.lerp(3.2, 3.2, exitT);
+        targetCamZ = THREE.MathUtils.lerp(-currentWidth / 2 + 3.25, 6, exitT);
 
         targetLookX = targetCamX + 4;
         targetLookY = 3.2;
@@ -670,40 +749,31 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       const parallaxX = (mouseCurrentRef.current.x || 0) * 0.45;
       const parallaxY = (mouseCurrentRef.current.y || 0) * 0.25;
 
-      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.08;
-      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.08;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.08;
+      // Responsive interpolation factor (0.12) eliminates sluggish trailing motion blur
+      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.12;
+      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.12;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.12;
 
       camera.lookAt(targetLookX + parallaxX * 0.4, targetLookY + parallaxY * 0.4, targetLookZ);
 
-      // 8d. Update Artworks & Disintegration Transitions
+      // 8d. Update Artworks: Permanent 100% Solid Canvases with Ambient Botanical Petals
       artworkObjects.forEach((item, idx) => {
         // Position on wall adjusts if wall moves
         item.group.position.z = -currentWidth / 2 + 0.14;
 
-        const totalSteps = Math.max(1, numArtworks - 1);
-        const artworkFocusProgress = 0.14 + (idx / totalSteps) * 0.74;
-        const nextArtworkFocus = 0.14 + ((idx + 1) / totalSteps) * 0.74;
+        // Keep all canvases completely solid, fully opaque, and crisp at all times!
+        item.canvasMaterial.opacity = 1.0;
+        item.canvasMaterial.transparent = false;
 
-        let disintegration = 0;
-        if (p > artworkFocusProgress + 0.05 && p < nextArtworkFocus + 0.02) {
-          disintegration = Math.min(1.0, (p - (artworkFocusProgress + 0.05)) / 0.08);
-        } else if (p >= nextArtworkFocus + 0.02) {
-          disintegration = 1.0;
-        }
-
-        // Apply disintegration to canvas mesh vs particle system
-        if (disintegration > 0.01 && disintegration < 0.99) {
-          item.canvasMaterial.opacity = 1.0 - disintegration;
-          item.canvasMaterial.transparent = true;
-
+        // Ambient botanical petals & pollen drifting gently around active artwork
+        const isCurrentlyActive = idx === activeArtworkIndex;
+        if (isCurrentlyActive) {
           item.particleSystem.visible = true;
           const pMat = item.particleSystem.material as THREE.PointsMaterial;
-          pMat.opacity = Math.sin(disintegration * Math.PI) * 0.95;
+          pMat.opacity = 0.65;
 
           const positions = item.particlePositions;
           const originals = item.particleOriginals;
-          const vels = item.particleVelocities;
           const count = positions.length / 3;
 
           for (let i = 0; i < count; i++) {
@@ -711,31 +781,16 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
             const iy = ix + 1;
             const iz = ix + 2;
 
-            const noiseFactor = Math.sin(time * 2.5 + i * 0.2) * 0.08;
-            positions[ix] = originals[ix] + vels[ix] * (disintegration * 2.8) + noiseFactor;
-            positions[iy] = originals[iy] + vels[iy] * (disintegration * 2.2) + Math.cos(time * 3 + i) * 0.06;
-            positions[iz] = originals[iz] + vels[iz] * (disintegration * 3.5);
+            positions[ix] = originals[ix] + Math.sin(time * 1.5 + i * 0.3) * 0.25;
+            positions[iy] = originals[iy] + Math.cos(time * 1.2 + i * 0.2) * 0.2;
+            positions[iz] = originals[iz] + 0.35 + Math.sin(time * 0.8 + i) * 0.15;
           }
           item.particleSystem.geometry.attributes.position.needsUpdate = true;
-        } else if (disintegration >= 0.99) {
-          item.canvasMaterial.opacity = 0.0;
-          item.canvasMaterial.transparent = true;
-          item.particleSystem.visible = false;
         } else {
-          item.canvasMaterial.opacity = 1.0;
-          item.canvasMaterial.transparent = false;
           item.particleSystem.visible = false;
-
-          const positions = item.particlePositions;
-          const originals = item.particleOriginals;
-          for (let i = 0; i < positions.length; i++) {
-            positions[i] = originals[i];
-          }
-          item.particleSystem.geometry.attributes.position.needsUpdate = true;
         }
 
         // Subtle bias light breathing pulse
-        const isCurrentlyActive = idx === activeArtworkIndex;
         const pulse = 1.0 + Math.sin(time * 2.0 + idx) * 0.08;
         const hoverBoost = hoveredArtwork?.id === item.artwork.id ? 1.4 : 1.0;
         item.biasPointLight.intensity = item.artwork.biasLightIntensity * pulse * hoverBoost * (isCurrentlyActive ? 1.2 : 0.85);

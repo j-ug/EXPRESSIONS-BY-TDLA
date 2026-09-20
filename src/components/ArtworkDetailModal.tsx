@@ -1,7 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { BotanicalArtwork, User, ArtworkReview } from '../types';
 import { createArtworkTexture } from '../utils/textureGenerator';
-import { getReviewsForArtwork, addArtworkReview } from '../utils/reviews';
+import {
+  getReviewsForArtwork,
+  addArtworkReview,
+  deleteArtworkReview,
+  updateArtworkReview,
+  isUserAdmin,
+} from '../utils/reviews';
+import { updateStoredArtwork } from '../utils/artworksStorage';
 import {
   X,
   Sparkles,
@@ -15,6 +22,8 @@ import {
   LogIn,
   Send,
   User as UserIcon,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
 import { ARTIST_INFO } from '../data/artworks';
 
@@ -23,6 +32,7 @@ interface ArtworkDetailModalProps {
   onClose: () => void;
   currentUser?: User | null;
   onOpenAuth?: () => void;
+  onUpdateArtwork?: (artwork: BotanicalArtwork) => void;
 }
 
 export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
@@ -30,6 +40,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
   onClose,
   currentUser,
   onOpenAuth,
+  onUpdateArtwork,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -40,6 +51,19 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
   const [reviewError, setReviewError] = useState<string | null>(null);
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
+  // Price editing state for admin
+  const [isEditingPrice, setIsEditingPrice] = useState(false);
+  const [priceInput, setPriceInput] = useState('');
+
+  // Review editing state
+  const [editingReviewId, setEditingReviewId] = useState<string | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editHoverRating, setEditHoverRating] = useState(0);
+  const [editComment, setEditComment] = useState('');
+  const [editError, setEditError] = useState<string | null>(null);
+
+  const isAdmin = isUserAdmin(currentUser);
+
   useEffect(() => {
     if (!artwork) return;
     const revs = getReviewsForArtwork(artwork.id);
@@ -47,6 +71,9 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
     setReviewError(null);
     setReviewSuccess(false);
     setNewComment('');
+    setIsEditingPrice(false);
+    setPriceInput(artwork.price || '₹18,500');
+    setEditingReviewId(null);
 
     if (canvasRef.current) {
       const tex = createArtworkTexture(artwork.textureTheme, artwork.customImageData);
@@ -64,6 +91,44 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
   }, [artwork]);
 
   if (!artwork) return null;
+
+  const handleSavePrice = () => {
+    const trimmed = priceInput.trim();
+    if (!trimmed) return;
+    const updated = { ...artwork, price: trimmed };
+    updateStoredArtwork(updated);
+    if (onUpdateArtwork) onUpdateArtwork(updated);
+    setIsEditingPrice(false);
+  };
+
+  const handleDeleteReview = (reviewId: string) => {
+    const res = deleteArtworkReview(reviewId, currentUser);
+    if (res.success) {
+      setReviews((prev) => prev.filter((r) => r.id !== reviewId));
+    } else {
+      alert(res.error || 'Failed to delete review.');
+    }
+  };
+
+  const startEditReview = (rev: ArtworkReview) => {
+    setEditingReviewId(rev.id);
+    setEditRating(rev.rating);
+    setEditComment(rev.comment);
+    setEditError(null);
+  };
+
+  const handleSaveEditReview = (reviewId: string) => {
+    setEditError(null);
+    const res = updateArtworkReview(reviewId, editRating, editComment, currentUser);
+    if (res.success && res.updatedReview) {
+      setReviews((prev) =>
+        prev.map((r) => (r.id === reviewId ? res.updatedReview! : r))
+      );
+      setEditingReviewId(null);
+    } else {
+      setEditError(res.error || 'Failed to update review.');
+    }
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -101,7 +166,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
     }
 
     if (!newComment.trim()) {
-      setReviewError('Please write a brief comment or reflection.');
+      setReviewError('Please write a brief reflection.');
       return;
     }
 
@@ -112,7 +177,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
       setReviewSuccess(true);
       setTimeout(() => setReviewSuccess(false), 3000);
     } else {
-      setReviewError(res.error || 'Failed to submit review.');
+      setReviewError(res.error || 'Failed to submit reflection.');
     }
   };
 
@@ -218,29 +283,62 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
               )}
             </div>
 
+            {/* Price section & Admin Price Editor */}
+            <div className="flex items-center justify-between p-3.5 rounded-2xl bg-[#f5ece0]/80 border border-[#ded0be]">
+              <div>
+                <span className="text-[10px] uppercase font-mono tracking-wider text-[#7d6148] block">
+                  Canvas Acquisition Price
+                </span>
+                {isEditingPrice ? (
+                  <div className="flex items-center gap-2 mt-1.5">
+                    <input
+                      type="text"
+                      value={priceInput}
+                      onChange={(e) => setPriceInput(e.target.value)}
+                      placeholder="e.g. ₹22,000"
+                      className="px-2.5 py-1 rounded-lg bg-[#fffefc] border border-[#85582f] text-xs font-semibold text-[#2d1f14] focus:outline-none w-32"
+                    />
+                    <button
+                      onClick={handleSavePrice}
+                      className="px-2.5 py-1 rounded-lg bg-[#85582f] text-[#fffdfa] text-xs font-medium hover:bg-[#6e4622] cursor-pointer"
+                    >
+                      Save
+                    </button>
+                    <button
+                      onClick={() => setIsEditingPrice(false)}
+                      className="px-2 py-1 rounded-lg bg-[#eadbc8] text-[#5c4430] text-xs hover:bg-[#decaba] cursor-pointer"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <div className="font-serif text-2xl font-bold text-[#85582f] tracking-wide mt-0.5">
+                    {artwork.price || '₹18,500'}
+                  </div>
+                )}
+              </div>
+
+              {isAdmin && !isEditingPrice && (
+                <button
+                  onClick={() => {
+                    setPriceInput(artwork.price || '₹18,500');
+                    setIsEditingPrice(true);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#fffefc] hover:bg-[#f6eee3] text-[#85582f] border border-[#d6c4af] text-xs font-medium transition-all shadow-2xs cursor-pointer"
+                  title="Admin: Edit Canvas Price"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Price</span>
+                </button>
+              )}
+            </div>
+
             <div className="space-y-2.5 text-xs text-[#523e2d] pb-3 border-b border-[#ded0be]">
               <div className="flex items-start gap-2.5">
                 <Layers className="w-4 h-4 text-[#8c5e34] shrink-0 mt-0.5" />
                 <div>
                   <div className="text-[10px] uppercase font-mono tracking-wider text-[#7d6148]">Medium & Technique</div>
                   <div className="text-xs font-serif italic text-[#2d1f14]">{artwork.medium}</div>
-                </div>
-              </div>
-
-              <div className="flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-[#8c5e34] shrink-0 mt-0.5" />
-                <div>
-                  <div className="text-[10px] uppercase font-mono tracking-wider text-[#7d6148]">Flora Species Preserved</div>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {artwork.botanicalSpecies.map((s, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-0.5 rounded bg-[#f5ecdf] border border-[#ded0be] text-[#4d3725] text-[11px]"
-                      >
-                        {s}
-                      </span>
-                    ))}
-                  </div>
                 </div>
               </div>
 
@@ -287,6 +385,11 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                     <div className="flex items-center gap-1 text-xs text-[#2d1f14] font-medium">
                       <UserIcon className="w-3.5 h-3.5 text-[#85582f]" />
                       <span>{currentUser.name}</span>
+                      {isAdmin && (
+                        <span className="text-[9px] uppercase font-mono px-1.5 py-0.2 rounded bg-[#eedfcb] text-[#78573a] font-bold">
+                          Admin
+                        </span>
+                      )}
                     </div>
                     {/* Interactive Stars */}
                     <div className="flex items-center gap-0.5">
@@ -315,7 +418,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                     rows={2}
                     value={newComment}
                     onChange={(e) => setNewComment(e.target.value)}
-                    placeholder="Share your thoughts on this specimen..."
+                    placeholder="Share your reflection on this botanical specimen..."
                     className="w-full px-3 py-1.5 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f] resize-none"
                   />
 
@@ -323,7 +426,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                     <p className="text-[11px] text-[#a33232]">{reviewError}</p>
                   )}
                   {reviewSuccess && (
-                    <p className="text-[11px] text-[#2c6e3b]">Review submitted successfully!</p>
+                    <p className="text-[11px] text-[#2c6e3b]">Reflection posted successfully!</p>
                   )}
 
                   <div className="flex justify-end">
@@ -343,7 +446,7 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                       Leave a Review or Comment
                     </p>
                     <p className="text-[11px] text-[#6e543f]">
-                      Sign in with your email & password to comment.
+                      Sign in to comment or share reflections on this canvas.
                     </p>
                   </div>
                   <button
@@ -357,43 +460,143 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                 </div>
               )}
 
-              {/* Existing Reviews */}
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+              {/* Reviews List with Admin Edit & Delete Ability */}
+              <div className="space-y-2.5 max-h-56 overflow-y-auto pr-1">
                 {reviews.length === 0 ? (
-                  <p className="text-xs text-[#8c6f55] italic text-center py-2">
-                    No reflections yet. Sign in to leave the first comment.
+                  <p className="text-xs text-[#8c6f55] italic text-center py-3 bg-[#fdfaf5] rounded-xl border border-[#ebdccb]">
+                    No reflections yet. Sign in above to leave the first comment.
                   </p>
                 ) : (
-                  reviews.map((rev) => (
-                    <div
-                      key={rev.id}
-                      className="p-2.5 rounded-xl bg-[#fffefc] border border-[#ebdccb] text-xs space-y-1"
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-[#2d1f14]">{rev.userName}</span>
-                        <div className="flex items-center gap-0.5">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`w-3 h-3 ${
-                                i < rev.rating
-                                  ? 'fill-[#85582f] text-[#85582f]'
-                                  : 'text-[#dfd0bd]'
-                              }`}
-                            />
-                          ))}
+                  reviews.map((rev) => {
+                    const canManage = isAdmin || (currentUser && currentUser.id === rev.userId);
+                    const isCurrentlyEditing = editingReviewId === rev.id;
+
+                    if (isCurrentlyEditing) {
+                      return (
+                        <div
+                          key={rev.id}
+                          className="p-3 rounded-xl bg-[#fffefc] border-2 border-[#85582f] text-xs space-y-2 shadow-sm"
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="font-semibold text-[#2d1f14]">
+                              Editing reflection by {rev.userName}
+                            </span>
+                            <div className="flex items-center gap-0.5">
+                              {[1, 2, 3, 4, 5].map((star) => (
+                                <button
+                                  key={star}
+                                  type="button"
+                                  onClick={() => setEditRating(star)}
+                                  onMouseEnter={() => setEditHoverRating(star)}
+                                  onMouseLeave={() => setEditHoverRating(0)}
+                                  className="cursor-pointer"
+                                >
+                                  <Star
+                                    className={`w-3.5 h-3.5 ${
+                                      (editHoverRating || editRating) >= star
+                                        ? 'fill-[#85582f] text-[#85582f]'
+                                        : 'text-[#dfd0bd]'
+                                    }`}
+                                  />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <textarea
+                            rows={2}
+                            value={editComment}
+                            onChange={(e) => setEditComment(e.target.value)}
+                            className="w-full px-2.5 py-1.5 rounded-lg bg-[#fffdf9] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f] resize-none"
+                          />
+
+                          {editError && (
+                            <p className="text-[11px] text-[#a33232]">{editError}</p>
+                          )}
+
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setEditingReviewId(null)}
+                              className="px-2.5 py-1 rounded-lg bg-[#eedfcb] text-[#5e4530] text-xs hover:bg-[#e0cfb8] cursor-pointer"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSaveEditReview(rev.id)}
+                              className="px-3 py-1 rounded-lg bg-[#85582f] text-[#fffdfa] text-xs font-medium hover:bg-[#6e4622] cursor-pointer"
+                            >
+                              Save Review
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div
+                        key={rev.id}
+                        className="p-2.5 rounded-xl bg-[#fffefc] border border-[#ebdccb] text-xs space-y-1.5 transition-all hover:border-[#d6c4af]"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-semibold text-[#2d1f14]">{rev.userName}</span>
+                            {rev.editedAt && (
+                              <span className="text-[9px] text-[#997c65] italic">(edited)</span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-0.5">
+                              {[...Array(5)].map((_, i) => (
+                                <Star
+                                  key={i}
+                                  className={`w-3 h-3 ${
+                                    i < rev.rating
+                                      ? 'fill-[#85582f] text-[#85582f]'
+                                      : 'text-[#dfd0bd]'
+                                  }`}
+                                />
+                              ))}
+                            </div>
+
+                            {/* Admin / Author Controls: Edit & Delete */}
+                            {canManage && (
+                              <div className="flex items-center gap-1 pl-1 border-l border-[#ebdccb]">
+                                <button
+                                  type="button"
+                                  onClick={() => startEditReview(rev)}
+                                  className="p-1 rounded-md text-[#78573a] hover:bg-[#f5ece0] hover:text-[#2d1f14] transition-colors cursor-pointer"
+                                  title={isAdmin ? 'Admin: Edit Review' : 'Edit your review'}
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteReview(rev.id)}
+                                  className="p-1 rounded-md text-[#9e3d3d] hover:bg-[#fbeeed] hover:text-[#7d2424] transition-colors cursor-pointer"
+                                  title={isAdmin ? 'Admin: Delete Review' : 'Delete your review'}
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-[#574232] leading-relaxed">{rev.comment}</p>
+
+                        <div className="text-[10px] font-mono text-[#947860]">
+                          {new Date(rev.createdAt).toLocaleDateString(undefined, {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                          })}
                         </div>
                       </div>
-                      <p className="text-[#574232] leading-relaxed">{rev.comment}</p>
-                      <div className="text-[10px] font-mono text-[#947860]">
-                        {new Date(rev.createdAt).toLocaleDateString(undefined, {
-                          year: 'numeric',
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </div>
-                    </div>
-                  ))
+                    );
+                  })
                 )}
               </div>
             </div>

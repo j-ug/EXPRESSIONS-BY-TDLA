@@ -115,13 +115,23 @@ export const Accessible2DGallery: React.FC<Accessible2DGalleryProps> = ({
                   {artwork.inspiration}
                 </div>
 
+                <div className="flex items-center justify-between p-3 rounded-xl bg-[#f5ece0]/70 border border-[#ded0be] mb-6">
+                  <div>
+                    <span className="text-[10px] font-mono uppercase tracking-wider text-[#7d6148] block">Acquisition Value</span>
+                    <span className="font-serif text-xl font-bold text-[#85582f]">{artwork.price || '₹18,500'}</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#8c6f55] px-2.5 py-1 rounded-full bg-[#fdfaf6] border border-[#e4d6c5]">
+                    {artwork.dimensions}
+                  </span>
+                </div>
+
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => onInspect(artwork)}
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#85582f] hover:bg-[#6e4622] text-[#fffefa] text-xs font-semibold border border-[#9e6d3d] transition-all cursor-pointer shadow-sm"
                   >
                     <Maximize2 className="w-3.5 h-3.5" />
-                    Inspect Details
+                    Inspect Details & Reviews
                   </button>
 
                   <a

@@ -32,3 +32,28 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #ba9e84;
 }
+
+/* Down-to-Up Text Animation Keyframes & Delays */
+@keyframes textSlideDownToUp {
+  0% {
+    opacity: 0;
+    transform: translateY(32px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-down-to-up {
+  animation: textSlideDownToUp 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stagger-1 { animation-delay: 40ms; }
+.stagger-2 { animation-delay: 90ms; }
+.stagger-3 { animation-delay: 150ms; }
+.stagger-4 { animation-delay: 210ms; }
+.stagger-5 { animation-delay: 270ms; }
+.stagger-6 { animation-delay: 330ms; }
+.stagger-7 { animation-delay: 400ms; }
+

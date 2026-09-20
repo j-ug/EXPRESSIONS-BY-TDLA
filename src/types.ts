@@ -8,13 +8,14 @@ export interface BotanicalArtwork {
   medium: string;
   dimensions: string;
   year: string;
+  price?: string; // e.g. ₹18,500 or $250
   frameShape: FrameShape;
   biasLightColor: string; // Hex color for halo & rim light
   biasLightIntensity: number;
   description: string;
   inspiration: string;
   panelPosition: 'below' | 'left' | 'above' | 'right'; // Placement in 3D / overlay space
-  textureTheme: 'peepal_sacred' | 'lotus_kaveri' | 'palmyra_sun' | 'vilvam_monsoon' | 'jasmine_malli' | 'custom';
+  textureTheme: string; // 'peepal_sacred', 'lotus_kaveri', 'palmyra_sun', 'vilvam_monsoon', 'jasmine_malli', 'custom', or extended botanical themes
   customImageData?: string; // Optional uploaded or custom data URL
   createdBy?: string;
 }
@@ -37,6 +38,7 @@ export interface ArtworkReview {
   rating: number; // 1 to 5 stars
   comment: string;
   createdAt: string;
+  editedAt?: string;
 }
 
 export interface GalleryState {

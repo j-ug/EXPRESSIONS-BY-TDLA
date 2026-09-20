@@ -2,58 +2,13 @@ import { ArtworkReview, User } from '../types';
 
 const REVIEWS_STORAGE_KEY = 'botanical_gallery_reviews';
 
-const INITIAL_REVIEWS: ArtworkReview[] = [
-  {
-    id: 'rev-1',
-    artworkId: 'artwork-1',
-    userId: 'seed-user-1',
-    userName: 'Dr. M. Soundararajan',
-    userEmail: 'soundar@herbarium.org',
-    rating: 5,
-    comment: 'The microscopic preservation of the secondary xylem and phloem lattice is extraordinary. The vermillion madder accentuates the organic geometry with quiet spiritual reverence.',
-    createdAt: '2024-05-12T10:30:00.000Z',
-  },
-  {
-    id: 'rev-2',
-    artworkId: 'artwork-1',
-    userId: 'seed-user-2',
-    userName: 'Priya Meenakshi',
-    userEmail: 'priya.m@artsociety.in',
-    rating: 5,
-    comment: 'Observed this from Chennai. The translucent fragility of the sacred peepal leaf held against the bias glow evokes the quiet rhythm of the Kaveri riverbed.',
-    createdAt: '2024-06-20T14:15:00.000Z',
-  },
-  {
-    id: 'rev-3',
-    artworkId: 'artwork-2',
-    userId: 'seed-user-3',
-    userName: 'Kavitha Ramachandran',
-    userEmail: 'kavitha.r@curator.net',
-    rating: 5,
-    comment: 'The concentric placement of pressed sunrise lotus petals mimics the sacred architecture of temple water tanks. Remarkable preservation of natural cellular tint.',
-    createdAt: '2024-07-04T09:45:00.000Z',
-  },
-  {
-    id: 'rev-4',
-    artworkId: 'artwork-3',
-    userId: 'seed-user-4',
-    userName: 'David Vance',
-    userEmail: 'vance.d@botanicalarts.co.uk',
-    rating: 5,
-    comment: 'Palmyra fronds are notoriously difficult to score without fracturing the vascular bundles. Dr. Ophylia’s technique demonstrates master-level craft.',
-    createdAt: '2024-08-11T16:20:00.000Z',
-  },
-  {
-    id: 'rev-5',
-    artworkId: 'artwork-4',
-    userId: 'seed-user-5',
-    userName: 'Dr. Anbu Selvan',
-    userEmail: 'anbu@bharathidasan.edu',
-    rating: 5,
-    comment: 'The aromatic presence of preserved vilvam leaves framed in circular sacred harmony is a triumph. A true homage to Tiruchy heritage.',
-    createdAt: '2024-09-02T11:00:00.000Z',
-  },
-];
+// No pre-seeded AI generated reviews - only genuine visitor and collector reflections
+const INITIAL_REVIEWS: ArtworkReview[] = [];
+
+export function isUserAdmin(user?: User | null): boolean {
+  if (!user) return false;
+  return user.role === 'admin' || user.isAdmin === true || user.email === 'admin123@gmail.com';
+}
 
 export function getStoredReviews(): ArtworkReview[] {
   try {
@@ -62,7 +17,24 @@ export function getStoredReviews(): ArtworkReview[] {
       localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(INITIAL_REVIEWS));
       return INITIAL_REVIEWS;
     }
-    return JSON.parse(raw);
+    const parsed: ArtworkReview[] = JSON.parse(raw);
+    if (!Array.isArray(parsed)) {
+      return INITIAL_REVIEWS;
+    }
+
+    // Purge any legacy AI generated/seeded reviews from previous builds
+    const cleaned = parsed.filter(
+      (r) =>
+        r &&
+        !r.userId?.startsWith('seed-user') &&
+        !['rev-1', 'rev-2', 'rev-3', 'rev-4', 'rev-5'].includes(r.id)
+    );
+
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(cleaned));
+    }
+
+    return cleaned;
   } catch {
     return INITIAL_REVIEWS;
   }
@@ -111,4 +83,86 @@ export function addArtworkReview(
   }
 
   return { success: true, review: newReview };
+}
+
+export function deleteArtworkReview(
+  reviewId: string,
+  user?: User | null
+): { success: boolean; error?: string } {
+  if (!user) {
+    return { success: false, error: 'You must be signed in to delete reviews.' };
+  }
+
+  const all = getStoredReviews();
+  const target = all.find((r) => r.id === reviewId);
+  if (!target) {
+    return { success: false, error: 'Review not found.' };
+  }
+
+  const admin = isUserAdmin(user);
+  const isAuthor = target.userId === user.id;
+
+  if (!admin && !isAuthor) {
+    return { success: false, error: 'Only administrators or the author may delete this review.' };
+  }
+
+  const updated = all.filter((r) => r.id !== reviewId);
+  try {
+    localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(updated));
+  } catch {
+    // Continue
+  }
+
+  return { success: true };
+}
+
+export function updateArtworkReview(
+  reviewId: string,
+  rating: number,
+  comment: string,
+  user?: User | null
+): { success: boolean; updatedReview?: ArtworkReview; error?: string } {
+  if (!user) {
+    return { success: false, error: 'You must be signed in to edit reviews.' };
+  }
+
+  const cleanComment = comment.trim();
+  if (!cleanComment) {
+    return { success: false, error: 'Please enter a comment.' };
+  }
+
+  if (rating < 1 || rating > 5) {
+    return { success: false, error: 'Please select a rating between 1 and 5 stars.' };
+  }
+
+  const all = getStoredReviews();
+  const targetIndex = all.findIndex((r) => r.id === reviewId);
+  if (targetIndex === -1) {
+    return { success: false, error: 'Review not found.' };
+  }
+
+  const target = all[targetIndex];
+  const admin = isUserAdmin(user);
+  const isAuthor = target.userId === user.id;
+
+  if (!admin && !isAuthor) {
+    return { success: false, error: 'Only administrators or the author may edit this review.' };
+  }
+
+  const updatedReview: ArtworkReview = {
+    ...target,
+    rating,
+    comment: cleanComment,
+    editedAt: new Date().toISOString(),
+  };
+
+  all[targetIndex] = updatedReview;
+
+  try {
+    localStorage.setItem(REVIEWS_STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // Continue
+  }
+
+  return { success: true, updatedReview };
 }

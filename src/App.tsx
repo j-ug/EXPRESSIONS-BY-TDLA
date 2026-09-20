@@ -12,7 +12,7 @@ import { MobileHorizontalControls } from './components/MobileHorizontalControls'
 import { BotanicalArtwork, GalleryState, User } from './types';
 import { galleryAudio } from './utils/audio';
 import { getCurrentUser, logoutUser } from './utils/auth';
-import { getAllArtworks, saveDynamicArtwork } from './utils/artworksStorage';
+import { getAllArtworks, saveDynamicArtwork, updateStoredArtwork } from './utils/artworksStorage';
 
 export default function App() {
   const [artworks, setArtworks] = useState<BotanicalArtwork[]>(() => getAllArtworks());
@@ -226,6 +226,17 @@ export default function App() {
     }, 400);
   };
 
+  const handleUpdateArtwork = (updatedArt: BotanicalArtwork) => {
+    updateStoredArtwork(updatedArt);
+    const updatedList = getAllArtworks();
+    setArtworks(updatedList);
+    setGalleryState((prev) => ({
+      ...prev,
+      selectedArtwork: updatedArt,
+    }));
+    triggerNotification(`Updated price & details for “${updatedArt.title}”!`);
+  };
+
   const activeArtwork = artworks[galleryState.activeArtworkIndex] || artworks[0];
 
   return (
@@ -324,6 +335,7 @@ export default function App() {
         onClose={handleCloseModal}
         currentUser={currentUser}
         onOpenAuth={() => setAuthModalOpen(true)}
+        onUpdateArtwork={handleUpdateArtwork}
       />
 
       {/* User Login & Signup Modal */}
