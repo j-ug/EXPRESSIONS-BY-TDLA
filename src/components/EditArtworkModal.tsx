@@ -6,7 +6,7 @@ interface EditArtworkModalProps {
   artwork: BotanicalArtwork;
   isOpen: boolean;
   onClose: () => void;
-  onSave: (updated: BotanicalArtwork) => void;
+  onSave: (updated: BotanicalArtwork) => void | Promise<void>;
 }
 
 const COLOR_PRESETS = [
@@ -28,13 +28,13 @@ export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
 }) => {
   const [title, setTitle] = useState(artwork.title || '');
   const [tamilTitle, setTamilTitle] = useState(artwork.tamilTitle || '');
-  const [price, setPrice] = useState(artwork.price || '₹18,500');
+  const [price, setPrice] = useState(artwork.price || '');
   const [medium, setMedium] = useState(artwork.medium || '');
-  const [dimensions, setDimensions] = useState(artwork.dimensions || '70 × 55 cm');
-  const [year, setYear] = useState(artwork.year || '2024');
+  const [dimensions, setDimensions] = useState(artwork.dimensions || '');
+  const [year, setYear] = useState(artwork.year || '');
   const [frameShape, setFrameShape] = useState<FrameShape>(artwork.frameShape || 'rectangle');
   const [biasLightColor, setBiasLightColor] = useState(artwork.biasLightColor || '#608050');
-  const [biasLightIntensity, setBiasLightIntensity] = useState<number>(artwork.biasLightIntensity || 2.0);
+  const [biasLightIntensity, setBiasLightIntensity] = useState<number>(artwork.biasLightIntensity ?? 2.0);
   const [customImageData, setCustomImageData] = useState<string | undefined>(artwork.customImageData);
   const [description, setDescription] = useState(artwork.description || '');
   const [inspiration, setInspiration] = useState(artwork.inspiration || '');
@@ -42,6 +42,7 @@ export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
   const [textureTheme, setTextureTheme] = useState(artwork.textureTheme || 'peepal_sacred');
   const [error, setError] = useState<string | null>(null);
 
+  const [saving, setSaving] = useState(false);
   if (!isOpen) return null;
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -62,8 +63,9 @@ export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim()) {
       setError('Please provide a title for the canvas.');
       return;
@@ -78,22 +80,24 @@ export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
       ...artwork,
       title: title.trim(),
       tamilTitle: tamilTitle.trim() || undefined,
-      botanicalSpecies: speciesArray.length > 0 ? speciesArray : ['Pressed indigenous flora'],
-      medium: medium.trim() || 'Pressed botanical flora on handmade paper',
-      dimensions: dimensions.trim() || '70 × 55 cm',
-      year: year.trim() || '2024',
-      price: price.trim() || '₹18,500',
+      botanicalSpecies: speciesArray,
+      medium: medium.trim(),
+      dimensions: dimensions.trim(),
+      year: year.trim(),
+      price: price.trim(),
       frameShape,
       biasLightColor,
-      biasLightIntensity: Number(biasLightIntensity) || 2.0,
-      description: description.trim() || 'Botanical composition on paper.',
-      inspiration: inspiration.trim() || 'Curated botanical specimen.',
+      biasLightIntensity: Number.isFinite(biasLightIntensity) ? biasLightIntensity : 2.0,
+      description: description.trim(),
+      inspiration: inspiration.trim(),
       textureTheme,
       customImageData,
     };
 
-    onSave(updatedArt);
-    onClose();
+    setSaving(true);
+    try { await onSave(updatedArt); onClose(); }
+    catch (error) { setError(error instanceof Error ? error.message : 'Could not save canvas.'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -330,6 +334,7 @@ export const EditArtworkModal: React.FC<EditArtworkModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
+              disabled={saving}
               className="w-full py-2.5 rounded-xl bg-[#85582f] hover:bg-[#6e4622] text-[#fffefa] text-xs font-semibold shadow-md border border-[#9e6d3d] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Check className="w-4 h-4" />

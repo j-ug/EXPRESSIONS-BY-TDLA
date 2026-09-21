@@ -46,6 +46,7 @@ export const Accessible2DGallery: React.FC<Accessible2DGalleryProps> = ({
         </p>
       </div>
 
+      {artworks.length === 0 && <p role="status" className="text-center py-12">No canvases are currently on display.</p>}
       {/* Artworks List */}
       <div className="grid grid-cols-2 gap-4 mb-20">
         {artworks.map((artwork, idx) => {
@@ -66,7 +67,7 @@ export const Accessible2DGallery: React.FC<Accessible2DGalleryProps> = ({
                   }}
                 >
                   <img
-                    src={canvasDataUrl}
+                    src={artwork.customImageData || canvasDataUrl}
                     alt={artwork.title}
                     className="w-full max-w-sm h-auto rounded-lg shadow-md bg-[#fbf7f1] object-contain"
                   />
@@ -116,7 +117,7 @@ export const Accessible2DGallery: React.FC<Accessible2DGalleryProps> = ({
                 <div className="flex items-center justify-between p-2 rounded-lg bg-[#f5ece0]/70 border border-[#ded0be] mb-4">
                   <div>
                     <span className="text-[9px] font-mono uppercase tracking-wider text-[#7d6148] block">Price</span>
-                    <span className="font-serif text-sm font-bold text-[#85582f]">{artwork.price || '₹18,500'}</span>
+                    <span className="font-serif text-sm font-bold text-[#85582f]">{artwork.price || 'Price on request'}</span>
                   </div>
                   <span className="text-[10px] font-mono text-[#8c6f55] px-2 py-0.5 rounded-full bg-[#fdfaf6] border border-[#e4d6c5]">
                     {artwork.dimensions}

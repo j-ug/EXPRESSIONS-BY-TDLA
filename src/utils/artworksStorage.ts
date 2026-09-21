@@ -24,7 +24,7 @@ export function replaceStoredArtworks(artworks: BotanicalArtwork[]): BotanicalAr
   try {
     localStorage.setItem(ARTWORKS_STORAGE_KEY, JSON.stringify(artworks));
   } catch {
-    // The Firestore copy remains authoritative when browser storage is unavailable.
+    // The Supabase copy remains authoritative when browser storage is unavailable.
   }
   return artworks;
 }

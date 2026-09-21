@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { BotanicalArtwork, User } from '../types';
 import { replaceStoredArtworks } from '../utils/artworksStorage';
-import { deleteAllArtworks, deleteArtwork, updateArtwork } from '../lib/artworks';
+import { deleteAllArtworks, deleteArtwork, updateArtwork, getArtworks, saveArtwork } from '../lib/artworks';
 import { EditArtworkModal } from './EditArtworkModal';
 import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, X } from 'lucide-react';
 
@@ -23,19 +23,52 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   const [editingArtwork, setEditingArtwork] = useState<BotanicalArtwork | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const [importing, setImporting] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const importArtworks = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || importing) return;
+    if (!window.confirm('Import this artwork export? Existing IDs will not be overwritten.')) return;
+    setImporting(true);
+    setError(null);
+    try {
+      const records = JSON.parse(await file.text());
+      if (!Array.isArray(records)) throw new Error('Export must be a JSON array of artworks.');
+      for (const record of records) {
+        if (!record || typeof record.id !== 'string' || typeof record.title !== 'string' ||
+            !Array.isArray(record.botanicalSpecies) || typeof record.textureTheme !== 'string' ||
+            typeof record.biasLightIntensity !== 'number' ||
+            !['rectangle', 'square', 'leaf', 'circular', 'arched'].includes(record.frameShape)) {
+          throw new Error('Invalid artwork record. Export complete artwork objects with their original IDs.');
+        }
+      }
+      for (const record of records) await saveArtwork(record);
+    } catch (error) {
+      setError((error instanceof Error ? error.message : 'Import failed.') + ' Earlier records may have been imported.');
+    } finally {
+      try { onUpdateArtworks(replaceStoredArtworks(await getArtworks())); }
+      catch { setError('Could not refresh the gallery. Reload before importing again.'); }
+      setImporting(false);
+      event.target.value = '';
+    }
+  };
+
   if (!currentUser?.isAdmin) return null;
 
   const handleDeleteSingle = async (id: string, title: string) => {
+    if (deleting || importing) return;
     if (!window.confirm(`Are you sure you want to delete canvas "${title}"?`)) return;
+    setDeleting(true);
     try {
       await deleteArtwork(id);
       onUpdateArtworks(replaceStoredArtworks(artworks.filter((art) => art.id !== id)));
     } catch {
       setError('The canvas could not be deleted. Please verify your admin access.');
-    }
+    } finally { setDeleting(false); }
   };
 
   const handleDeleteAll = async () => {
+    if (deleting || importing) return;
     if (
       !window.confirm(
         'WARNING: Are you sure you want to DELETE ALL CANVASES in the gallery?\n\nThis will remove all artwork entries so you can add them 1-by-1 manually.'
@@ -44,21 +77,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
 
+    setDeleting(true);
     try {
       await deleteAllArtworks();
       onUpdateArtworks(replaceStoredArtworks([]));
     } catch {
       setError('The gallery could not be cleared. No local items were removed.');
-    }
+    } finally { setDeleting(false); }
   };
 
   const handleSaveEdit = async (updatedArt: BotanicalArtwork) => {
     try {
-      await updateArtwork(updatedArt.id, updatedArt);
+      updatedArt = await updateArtwork(updatedArt.id, updatedArt);
       const updated = artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art));
       onUpdateArtworks(replaceStoredArtworks(updated));
-    } catch {
-      setError('Canvas details could not be saved. Please verify your admin access.');
+    } catch (error) {
+      throw error;
     }
   };
 
@@ -88,6 +122,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </button>
         </div>
 
+        <label className="mb-4 text-sm">
+          {importing ? 'Importing artworks…' : 'Import legacy artwork JSON (does not overwrite existing IDs)'}
+          <input type="file" accept=".json,application/json" disabled={importing || deleting}
+            onChange={importArtworks} className="block mt-2" />
+        </label>
         {/* Action Toolbar */}
         {error && (
           <div className="mb-4 p-3 rounded-xl bg-[#fdf1f1] border border-[#f5c6c6] text-xs text-[#a33232]">
@@ -107,6 +146,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
           {artworks.length > 0 && (
             <button
+              disabled={deleting || importing}
               onClick={handleDeleteAll}
               className="px-4 py-2 rounded-xl bg-[#a33232] hover:bg-[#7d2424] text-white text-xs font-semibold shadow-sm border border-[#c44949] flex items-center gap-2 transition-all cursor-pointer"
             >
@@ -161,7 +201,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6b5038] mt-0.5">
-                        <span className="font-semibold text-[#85582f]">{art.price || '₹18,500'}</span>
+                        <span className="font-semibold text-[#85582f]">{art.price || 'Price on request'}</span>
                         <span>•</span>
                         <span>{art.medium}</span>
                         <span>•</span>
@@ -183,6 +223,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </button>
 
                     <button
+                      disabled={deleting || importing}
                       onClick={() => handleDeleteSingle(art.id, art.title)}
                       className="px-3 py-1.5 rounded-lg bg-[#fdf1f1] hover:bg-[#fcdede] text-[#a33232] text-xs font-medium border border-[#f5c6c6] flex items-center gap-1.5 transition-all cursor-pointer"
                     >

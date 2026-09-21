@@ -1,96 +1,90 @@
-import {
-  createUserWithEmailAndPassword,
-  onAuthStateChanged,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-  type User as FirebaseUser,
-} from 'firebase/auth';
-import { auth } from '../lib/firebase';
 import { User } from '../types';
+import { getSupabase, supabase } from '../lib/supabase';
 
-const CURRENT_USER_STORAGE_KEY = 'botanical_gallery_current_user';
+let verifiedUser: User | null = null;
+export const getCurrentUser = (): User | null => verifiedUser;
 
-const toPublicUser = async (firebaseUser: FirebaseUser): Promise<User> => {
-  const token = await firebaseUser.getIdTokenResult(true);
-  const isAdmin = token.claims.admin === true || token.claims.role === 'admin';
+async function resolveUser(): Promise<User | null> {
+  const client = getSupabase();
+  const { data, error } = await client.auth.getUser();
+  if (error || !data.user) return null;
+  const { data: admin, error: roleError } = await client.rpc('is_gallery_admin');
+  if (roleError) throw roleError;
   return {
-    id: firebaseUser.uid,
-    name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Gallery Visitor',
-    email: firebaseUser.email || '',
-    role: isAdmin ? 'admin' : 'user',
-    isAdmin,
-    createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+    id: data.user.id,
+    name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Visitor',
+    email: data.user.email || '',
+    createdAt: data.user.created_at,
+    role: admin === true ? 'admin' : 'user',
+    isAdmin: admin === true,
   };
-};
-
-const persistUser = (user: User | null) => {
-  if (user) localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
-  else localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
-};
-
-export function getCurrentUser(): User | null {
-  try {
-    const raw = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as User) : null;
-  } catch {
-    return null;
-  }
 }
 
 export function subscribeToAuth(callback: (user: User | null) => void): () => void {
-  return onAuthStateChanged(auth, async (firebaseUser) => {
-    if (!firebaseUser) {
-      persistUser(null);
+  if (!supabase) { callback(null); return () => {}; }
+  let disposed = false;
+  let revision = 0;
+  const refresh = () => {
+    const current = ++revision;
+    // Run outside the SDK auth callback to avoid holding its session lock.
+    setTimeout(async () => {
+      let user: User | null = null;
+      try { user = await resolveUser(); } catch { /* Fail closed. */ }
+      if (!disposed && current === revision) {
+        verifiedUser = user;
+        callback(user);
+      }
+    }, 0);
+  };
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    if (!session) {
+      ++revision;
+      verifiedUser = null;
       callback(null);
-      return;
-    }
-    try {
-      const user = await toPublicUser(firebaseUser);
-      persistUser(user);
-      callback(user);
-    } catch {
-      persistUser(null);
-      callback(null);
-    }
+    } else refresh();
   });
+  const onFocus = () => refresh();
+  window.addEventListener('focus', onFocus);
+  refresh();
+  return () => {
+    disposed = true;
+    ++revision;
+    data.subscription.unsubscribe();
+    window.removeEventListener('focus', onFocus);
+  };
 }
 
-const authError = (error: unknown): string => {
-  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
-  if (code.includes('invalid-credential')) return 'Invalid email or password.';
-  if (code.includes('email-already-in-use')) return 'An account with this email already exists.';
-  if (code.includes('weak-password')) return 'Password must contain at least 6 characters.';
-  if (code.includes('invalid-email')) return 'Please enter a valid email address.';
-  if (code.includes('too-many-requests')) return 'Too many attempts. Please wait and try again.';
-  return 'Authentication failed. Please try again.';
-};
+const message = (error: unknown) => error instanceof Error ? error.message : 'Unable to authenticate. Please try again.';
 
 export async function loginUser(email: string, password: string) {
   try {
-    const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
-    const user = await toPublicUser(credential.user);
-    persistUser(user);
+    const { error } = await getSupabase().auth.signInWithPassword({ email: email.trim(), password });
+    if (error) throw error;
+    const user = await resolveUser();
+    if (!user) throw new Error('Unable to verify your session.');
+    verifiedUser = user;
     return { success: true as const, user };
-  } catch (error) {
-    return { success: false as const, error: authError(error) };
-  }
+  } catch (error) { return { success: false as const, error: message(error) }; }
 }
 
 export async function signUpUser(name: string, email: string, password: string) {
-  if (!name.trim()) return { success: false as const, error: 'Your name is required.' };
   try {
-    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
-    await updateProfile(credential.user, { displayName: name.trim() });
-    const user = await toPublicUser(credential.user);
-    persistUser(user);
-    return { success: true as const, user };
-  } catch (error) {
-    return { success: false as const, error: authError(error) };
-  }
+    if (!name.trim()) throw new Error('Your name is required.');
+    const { data, error } = await getSupabase().auth.signUp({
+      email: email.trim(), password,
+      options: { data: { name: name.trim() }, emailRedirectTo: window.location.origin },
+    });
+    if (error) throw error;
+    if (!data.session) return { success: true as const, user: undefined, message: 'Check your email to confirm your account, then sign in.' };
+    const user = await resolveUser();
+    if (!user) throw new Error('Unable to verify your session.');
+    verifiedUser = user;
+    return { success: true as const, user, message: undefined };
+  } catch (error) { return { success: false as const, error: message(error) }; }
 }
 
 export async function logoutUser(): Promise<void> {
-  await signOut(auth);
-  persistUser(null);
+  const { error } = await getSupabase().auth.signOut();
+  if (error) throw error;
+  verifiedUser = null;
 }

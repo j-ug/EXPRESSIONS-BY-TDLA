@@ -7,7 +7,7 @@ const textureCache = new Map<string, THREE.CanvasTexture>();
  * Creates a high-resolution procedural botanical artwork texture
  */
 export function createArtworkTexture(theme: string, customImageData?: string): THREE.CanvasTexture {
-  const cacheKey = customImageData ? `custom_${customImageData.slice(0, 40)}` : theme;
+  const cacheKey = customImageData ? `custom_${customImageData}` : theme;
   if (textureCache.has(cacheKey)) {
     return textureCache.get(cacheKey)!;
   }
@@ -52,6 +52,7 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   // If user provided a custom image, draw it onto the deckled canvas
   if (customImageData) {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.src = customImageData;
     if (img.complete && img.naturalWidth > 0) {
       // Draw centered with contain aspect ratio
@@ -1002,7 +1003,7 @@ export function createMuseumPlaqueTexture(art: {
     // Price & Dimensions
     ctx.fillStyle = '#85582f';
     ctx.font = 'bold 18px monospace';
-    ctx.fillText(`${art.dimensions}  |  ${art.price || '₹18,500'}`, 256, currentY);
+    ctx.fillText(`${art.dimensions}  |  ${art.price || 'Price on request'}`, 256, currentY);
     currentY += 28;
 
     // Museum Provenance Seal
@@ -1016,4 +1017,3 @@ export function createMuseumPlaqueTexture(art: {
   tex.minFilter = THREE.LinearMipmapLinearFilter;
   return tex;
 }
-

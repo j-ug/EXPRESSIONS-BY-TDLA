@@ -31,12 +31,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    setMessage(null);
     setLoading(true);
 
     try {
@@ -52,7 +54,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         if (res.success && res.user) {
           handleSuccess(res.user);
         } else {
-          setError(res.error || 'Sign up failed.');
+          if (res.success) setMessage(res.message || 'Check your email before signing in.');
+          else setError(res.error || 'Sign up failed.');
         }
       }
     } catch {
@@ -130,6 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
+        {message && <p role="status" className="mb-4 text-sm">{message}</p>}
         <form onSubmit={handleSubmit} className="space-y-3.5">
           {mode === 'signup' && (
             <div>

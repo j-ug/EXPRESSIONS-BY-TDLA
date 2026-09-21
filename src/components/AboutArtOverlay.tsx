@@ -194,7 +194,7 @@ export const AboutArtOverlay: React.FC<AboutArtOverlayProps> = ({
             <div className="flex items-baseline gap-1.5">
               <span className="text-[10px] font-mono uppercase text-[#7d6148]">Price:</span>
               <span className="font-serif font-bold text-sm text-[#85582f]">
-                {artwork.price || '₹18,500'}
+                {artwork.price || 'Price on request'}
               </span>
             </div>
 
@@ -211,4 +211,3 @@ export const AboutArtOverlay: React.FC<AboutArtOverlayProps> = ({
     </div>
   );
 };
-
