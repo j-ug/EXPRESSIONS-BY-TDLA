@@ -13,5 +13,8 @@ password or admin email is shipped to the browser.
 3. Deploy `firestore.rules` with the Firebase CLI.
 4. Sign out and sign in again so Firebase refreshes the ID token.
 
+For the full Google AI Studio sync and Netlify deployment workflow, follow
+`AI_STUDIO_HANDOFF.md`.
+
 Only users whose verified token contains `admin: true` can create, edit, or
 delete artwork documents. Regular visitors retain read-only access.
