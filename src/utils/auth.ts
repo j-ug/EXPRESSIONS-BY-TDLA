@@ -1,174 +1,96 @@
+import {
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+  type User as FirebaseUser,
+} from 'firebase/auth';
+import { auth } from '../lib/firebase';
 import { User } from '../types';
 
-const USERS_STORAGE_KEY = 'botanical_gallery_users';
 const CURRENT_USER_STORAGE_KEY = 'botanical_gallery_current_user';
 
-export const ADMIN_CREDENTIALS = {
-  email: 'admin123@gmail.com',
-  password: 'admin@987',
+const toPublicUser = async (firebaseUser: FirebaseUser): Promise<User> => {
+  const token = await firebaseUser.getIdTokenResult(true);
+  const isAdmin = token.claims.admin === true || token.claims.role === 'admin';
+  return {
+    id: firebaseUser.uid,
+    name: firebaseUser.displayName || firebaseUser.email?.split('@')[0] || 'Gallery Visitor',
+    email: firebaseUser.email || '',
+    role: isAdmin ? 'admin' : 'user',
+    isAdmin,
+    createdAt: firebaseUser.metadata.creationTime || new Date().toISOString(),
+  };
 };
 
-interface StoredUser extends User {
-  passwordHash: string;
-}
-
-// Pre-seeded Admin account
-const DEFAULT_ADMIN_USER: StoredUser = {
-  id: 'admin-main',
-  name: 'Gallery Curator (Admin)',
-  email: ADMIN_CREDENTIALS.email,
-  passwordHash: ADMIN_CREDENTIALS.password,
-  role: 'admin',
-  createdAt: '2024-01-01T00:00:00.000Z',
+const persistUser = (user: User | null) => {
+  if (user) localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
+  else localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
 };
-
-function getStoredUsers(): StoredUser[] {
-  try {
-    const raw = localStorage.getItem(USERS_STORAGE_KEY);
-    if (!raw) {
-      const initial = [DEFAULT_ADMIN_USER];
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(initial));
-      return initial;
-    }
-    const users = JSON.parse(raw);
-    // Ensure admin user exists in list
-    const hasAdmin = users.some((u: StoredUser) => u.email.toLowerCase() === ADMIN_CREDENTIALS.email.toLowerCase());
-    if (!hasAdmin) {
-      users.push(DEFAULT_ADMIN_USER);
-      localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-    }
-    return users;
-  } catch {
-    return [DEFAULT_ADMIN_USER];
-  }
-}
 
 export function getCurrentUser(): User | null {
   try {
     const raw = localStorage.getItem(CURRENT_USER_STORAGE_KEY);
-    if (!raw) return null;
-    const u = JSON.parse(raw);
-    if (u) {
-      u.isAdmin = u.role === 'admin';
-    }
-    return u;
+    return raw ? (JSON.parse(raw) as User) : null;
   } catch {
     return null;
   }
 }
 
-export function setCurrentUser(user: User | null): void {
-  try {
-    if (user) {
-      localStorage.setItem(CURRENT_USER_STORAGE_KEY, JSON.stringify(user));
-    } else {
-      localStorage.removeItem(CURRENT_USER_STORAGE_KEY);
+export function subscribeToAuth(callback: (user: User | null) => void): () => void {
+  return onAuthStateChanged(auth, async (firebaseUser) => {
+    if (!firebaseUser) {
+      persistUser(null);
+      callback(null);
+      return;
     }
-  } catch {
-    // Ignore storage issues
-  }
+    try {
+      const user = await toPublicUser(firebaseUser);
+      persistUser(user);
+      callback(user);
+    } catch {
+      persistUser(null);
+      callback(null);
+    }
+  });
 }
 
-export function loginUser(email: string, password: string): { success: boolean; user?: User; error?: string } {
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
+const authError = (error: unknown): string => {
+  const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
+  if (code.includes('invalid-credential')) return 'Invalid email or password.';
+  if (code.includes('email-already-in-use')) return 'An account with this email already exists.';
+  if (code.includes('weak-password')) return 'Password must contain at least 6 characters.';
+  if (code.includes('invalid-email')) return 'Please enter a valid email address.';
+  if (code.includes('too-many-requests')) return 'Too many attempts. Please wait and try again.';
+  return 'Authentication failed. Please try again.';
+};
 
-  if (!cleanEmail || !cleanPassword) {
-    return { success: false, error: 'Please provide both email and password.' };
-  }
-
-  // Check admin shortcut credentials
-  if (cleanEmail === ADMIN_CREDENTIALS.email.toLowerCase() && cleanPassword === ADMIN_CREDENTIALS.password) {
-    const adminUser: User = {
-      id: DEFAULT_ADMIN_USER.id,
-      name: DEFAULT_ADMIN_USER.name,
-      email: ADMIN_CREDENTIALS.email,
-      role: 'admin',
-      isAdmin: true,
-      createdAt: DEFAULT_ADMIN_USER.createdAt,
-    };
-    setCurrentUser(adminUser);
-    return { success: true, user: adminUser };
-  }
-
-  const users = getStoredUsers();
-  const found = users.find(
-    (u) => u.email.toLowerCase() === cleanEmail && u.passwordHash === cleanPassword
-  );
-
-  if (!found) {
-    return { success: false, error: 'Invalid email or password. Please try again or create an account.' };
-  }
-
-  const user: User = {
-    id: found.id,
-    name: found.name,
-    email: found.email,
-    role: found.role,
-    isAdmin: found.role === 'admin',
-    createdAt: found.createdAt,
-  };
-
-  setCurrentUser(user);
-  return { success: true, user };
-}
-
-export function signUpUser(
-  name: string,
-  email: string,
-  password: string
-): { success: boolean; user?: User; error?: string } {
-  const cleanName = name.trim();
-  const cleanEmail = email.trim().toLowerCase();
-  const cleanPassword = password.trim();
-
-  if (!cleanName || !cleanEmail || !cleanPassword) {
-    return { success: false, error: 'All fields are required.' };
-  }
-
-  if (cleanPassword.length < 5) {
-    return { success: false, error: 'Password must be at least 5 characters long.' };
-  }
-
-  const users = getStoredUsers();
-  const existing = users.find((u) => u.email.toLowerCase() === cleanEmail);
-  if (existing) {
-    return { success: false, error: 'An account with this email already exists. Please sign in.' };
-  }
-
-  // Check if this matches the requested admin email & password
-  const isAdmin =
-    cleanEmail === ADMIN_CREDENTIALS.email.toLowerCase() && cleanPassword === ADMIN_CREDENTIALS.password;
-
-  const newUser: StoredUser = {
-    id: `user-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
-    name: cleanName,
-    email: cleanEmail,
-    passwordHash: cleanPassword,
-    role: isAdmin ? 'admin' : 'user',
-    createdAt: new Date().toISOString(),
-  };
-
-  users.push(newUser);
+export async function loginUser(email: string, password: string) {
   try {
-    localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(users));
-  } catch {
-    // Continue
+    const credential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const user = await toPublicUser(credential.user);
+    persistUser(user);
+    return { success: true as const, user };
+  } catch (error) {
+    return { success: false as const, error: authError(error) };
   }
-
-  const publicUser: User = {
-    id: newUser.id,
-    name: newUser.name,
-    email: newUser.email,
-    role: newUser.role,
-    isAdmin: newUser.role === 'admin',
-    createdAt: newUser.createdAt,
-  };
-
-  setCurrentUser(publicUser);
-  return { success: true, user: publicUser };
 }
 
-export function logoutUser(): void {
-  setCurrentUser(null);
+export async function signUpUser(name: string, email: string, password: string) {
+  if (!name.trim()) return { success: false as const, error: 'Your name is required.' };
+  try {
+    const credential = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    await updateProfile(credential.user, { displayName: name.trim() });
+    const user = await toPublicUser(credential.user);
+    persistUser(user);
+    return { success: true as const, user };
+  } catch (error) {
+    return { success: false as const, error: authError(error) };
+  }
+}
+
+export async function logoutUser(): Promise<void> {
+  await signOut(auth);
+  persistUser(null);
 }

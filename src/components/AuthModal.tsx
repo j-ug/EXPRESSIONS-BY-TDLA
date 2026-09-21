@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { X, Lock, Mail, User as UserIcon, Sparkles, ShieldCheck, ArrowRight } from 'lucide-react';
+import { X, Lock, Mail, User as UserIcon, Sparkles, ArrowRight } from 'lucide-react';
 import { User } from '../types';
-import { loginUser, signUpUser, ADMIN_CREDENTIALS } from '../utils/auth';
+import { loginUser, signUpUser } from '../utils/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -34,21 +34,21 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
 
     try {
       if (mode === 'signin') {
-        const res = loginUser(email, password);
+        const res = await loginUser(email, password);
         if (res.success && res.user) {
           handleSuccess(res.user);
         } else {
           setError(res.error || 'Login failed.');
         }
       } else {
-        const res = signUpUser(name, email, password);
+        const res = await signUpUser(name, email, password);
         if (res.success && res.user) {
           handleSuccess(res.user);
         } else {
@@ -60,15 +60,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleFillAdmin = () => {
-    setEmail(ADMIN_CREDENTIALS.email);
-    setPassword(ADMIN_CREDENTIALS.password);
-    if (mode === 'signup') {
-      setName('Gallery Curator (Admin)');
-    }
-    setError(null);
   };
 
   return (
@@ -203,20 +194,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </form>
 
-        {/* Quick Fill Admin Helper */}
-        <div className="mt-5 pt-4 border-t border-[#dfd2c0] flex items-center justify-between text-[11px] text-[#7d6148]">
-          <div className="flex items-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#85582f]" />
-            <span>Admin credentials:</span>
-          </div>
-          <button
-            type="button"
-            onClick={handleFillAdmin}
-            className="px-2 py-1 rounded bg-[#f5ecdf] hover:bg-[#ede0ce] text-[#6b5038] font-mono text-[10px] border border-[#ded0be] transition-colors cursor-pointer"
-          >
-            Autofill Admin
-          </button>
-        </div>
       </div>
     </div>
   );

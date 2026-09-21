@@ -8,15 +8,7 @@ export function getStoredArtworks(): BotanicalArtwork[] {
     const raw = localStorage.getItem(ARTWORKS_STORAGE_KEY);
     if (raw !== null) {
       const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Strictly only keep the default 5 artworks for verification
-        const filtered = parsed.filter(art => 
-          BOTANICAL_ARTWORKS.some(b => b.id === art.id)
-        );
-        if (filtered.length > 0) {
-          return filtered;
-        }
-      }
+      if (Array.isArray(parsed)) return parsed;
     }
     // Default to the 5 default artworks
     localStorage.setItem(ARTWORKS_STORAGE_KEY, JSON.stringify(BOTANICAL_ARTWORKS));
@@ -27,6 +19,15 @@ export function getStoredArtworks(): BotanicalArtwork[] {
 }
 
 export const getAllArtworks = getStoredArtworks;
+
+export function replaceStoredArtworks(artworks: BotanicalArtwork[]): BotanicalArtwork[] {
+  try {
+    localStorage.setItem(ARTWORKS_STORAGE_KEY, JSON.stringify(artworks));
+  } catch {
+    // The Firestore copy remains authoritative when browser storage is unavailable.
+  }
+  return artworks;
+}
 
 export function updateStoredArtwork(updatedArtwork: BotanicalArtwork): BotanicalArtwork[] {
   const all = getStoredArtworks();
@@ -94,4 +95,3 @@ export function resetArtworksToDefault(): BotanicalArtwork[] {
   }
   return [];
 }
-

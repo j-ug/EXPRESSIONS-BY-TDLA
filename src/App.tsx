@@ -13,9 +13,9 @@ import { AddCanvasModal } from './components/AddCanvasModal';
 import { MobileHorizontalControls } from './components/MobileHorizontalControls';
 import { BotanicalArtwork, GalleryState, User } from './types';
 import { galleryAudio } from './utils/audio';
-import { getCurrentUser, logoutUser } from './utils/auth';
-import { getAllArtworks, saveDynamicArtwork, updateStoredArtwork, deleteStoredArtwork } from './utils/artworksStorage';
-import { deleteArtwork, keepFiveArtworks } from './lib/artworks';
+import { getCurrentUser, logoutUser, subscribeToAuth } from './utils/auth';
+import { getAllArtworks, replaceStoredArtworks } from './utils/artworksStorage';
+import { deleteArtwork, getArtworks, saveArtwork, updateArtwork } from './lib/artworks';
 
 export default function App() {
   const [artworks, setArtworks] = useState<BotanicalArtwork[]>(() => getAllArtworks());
@@ -39,17 +39,20 @@ export default function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Synchronize Firestore to only keep first 5 artworks on mount
+  // Firebase is authoritative; local storage is only an offline render cache.
   useEffect(() => {
-    const pruneFirestore = async () => {
+    const loadArtworks = async () => {
       try {
-        await keepFiveArtworks();
+        const remote = await getArtworks();
+        setArtworks(replaceStoredArtworks(remote));
       } catch (e) {
-        console.error('Error pruning database to 5 artworks:', e);
+        console.warn('Using cached artworks because Firestore is unavailable:', e);
       }
     };
-    pruneFirestore();
+    void loadArtworks();
   }, []);
+
+  useEffect(() => subscribeToAuth(setCurrentUser), []);
 
   // Trigger non-intrusive notification banner
   const triggerNotification = useCallback((msg: string) => {
@@ -216,8 +219,8 @@ export default function App() {
   };
 
   // Auth handlers
-  const handleSignOut = () => {
-    logoutUser();
+  const handleSignOut = async () => {
+    await logoutUser();
     setCurrentUser(null);
     triggerNotification('Signed out successfully.');
   };
@@ -232,11 +235,18 @@ export default function App() {
   };
 
   // Admin canvas handler
-  const handleAddCanvas = (newArtwork: BotanicalArtwork) => {
-    saveDynamicArtwork(newArtwork);
-    const updated = getAllArtworks();
-    setArtworks(updated);
-    triggerNotification(`New canvas “${newArtwork.title}” mounted in gallery!`);
+  const handleAddCanvas = async (newArtwork: BotanicalArtwork) => {
+    if (!currentUser?.isAdmin) return;
+    let updated: BotanicalArtwork[];
+    try {
+      await saveArtwork(newArtwork);
+      updated = replaceStoredArtworks([...artworks, newArtwork]);
+      setArtworks(updated);
+      triggerNotification(`New canvas “${newArtwork.title}” mounted in gallery!`);
+    } catch {
+      triggerNotification('Could not add the canvas. Admin permission is required.');
+      return;
+    }
     // Scroll to the newly added canvas station
     setTimeout(() => {
       const targetP = 0.14 + ((updated.length - 1) / Math.max(1, updated.length - 1)) * 0.74;
@@ -254,15 +264,23 @@ export default function App() {
       // Remove from Firestore
       await deleteArtwork(activeArt.id);
       // Remove from localStorage
-      const updated = deleteStoredArtwork(activeArt.id);
+      const updated = replaceStoredArtworks(artworks.filter((art) => art.id !== activeArt.id));
       setArtworks(updated);
       triggerNotification(`Canvas “${activeArt.title}” removed.`);
     }
   };
 
-  const handleUpdateArtwork = (updatedArt: BotanicalArtwork) => {
-    updateStoredArtwork(updatedArt);
-    const updatedList = getAllArtworks();
+  const handleUpdateArtwork = async (updatedArt: BotanicalArtwork) => {
+    if (!currentUser?.isAdmin) return;
+    try {
+      await updateArtwork(updatedArt.id, updatedArt);
+    } catch {
+      triggerNotification('Could not save changes. Admin permission is required.');
+      return;
+    }
+    const updatedList = replaceStoredArtworks(
+      artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art))
+    );
     setArtworks(updatedList);
     setGalleryState((prev) => ({
       ...prev,
