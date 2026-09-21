@@ -1,0 +1,59 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper functions
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isSignedIn() && request.auth.token.admin == true;
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128;
+    }
+
+    // BotanicalArtwork validation
+    function isValidArtwork(data) {
+      return data.title is string && data.title.size() <= 200
+        && data.botanicalSpecies is list
+        && data.medium is string
+        && data.dimensions is string
+        && data.year is string
+        && data.frameShape in ['rectangle', 'square', 'leaf', 'circular', 'arched']
+        && data.biasLightColor is string
+        && data.biasLightIntensity is number
+        && data.description is string
+        && data.inspiration is string
+        && data.panelPosition in ['below', 'left', 'above', 'right']
+        && data.textureTheme is string;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Artworks collection
+    match /artworks/{artworkId} {
+      allow read: if true;
+      allow create: if isAdmin() && isValidArtwork(request.resource.data);
+      allow update: if isAdmin() && isValidArtwork(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    // Reviews collection
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() 
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.comment.size() <= 1000;
+      allow update: if isSignedIn() 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.comment.size() <= 1000
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comment', 'rating']);
+      allow delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}

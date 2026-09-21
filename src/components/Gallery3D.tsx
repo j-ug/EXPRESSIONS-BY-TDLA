@@ -395,7 +395,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       const canvasMat = new THREE.MeshLambertMaterial({
         map: artTexture,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.15,
+        emissiveIntensity: 0.45, // Increased from 0.15 for 100% visibility
+        transparent: false,
+        opacity: 1.0,
       });
 
       const canvasMesh = new THREE.Mesh(frameGeometry, canvasMat);
@@ -490,7 +492,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         4.0, // Tighter radius
         2.0
       );
-      biasLight.position.set(0, 0, 0.1);
+      biasLight.position.set(0, 0, -0.2); // Moved BEHIND the canvas so it doesn't block the image
       artGroup.add(biasLight);
 
       // Small Museum Spotlight directed at artwork position (independent target)

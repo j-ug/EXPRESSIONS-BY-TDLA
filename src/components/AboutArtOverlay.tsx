@@ -21,7 +21,7 @@ export const AboutArtOverlay: React.FC<AboutArtOverlayProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
-  if (!isInGallery || scrollProgress >= 0.88) {
+  if (!artwork || !isInGallery || scrollProgress >= 0.88) {
     return null;
   }
 

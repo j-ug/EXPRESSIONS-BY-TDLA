@@ -1,0 +1,55 @@
+{
+  "entities": {
+    "BotanicalArtwork": {
+      "title": "Botanical Artwork",
+      "description": "Exhibition canvas data",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "maxLength": 200 },
+        "tamilTitle": { "type": "string", "maxLength": 200 },
+        "botanicalSpecies": { "type": "array" },
+        "medium": { "type": "string", "maxLength": 100 },
+        "dimensions": { "type": "string", "maxLength": 50 },
+        "year": { "type": "string", "maxLength": 4 },
+        "price": { "type": "string", "maxLength": 50 },
+        "frameShape": { "type": "string", "enum": ["rectangle", "square", "leaf", "circular", "arched"] },
+        "biasLightColor": { "type": "string", "pattern": "^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$" },
+        "biasLightIntensity": { "type": "number" },
+        "description": { "type": "string", "maxLength": 2000 },
+        "inspiration": { "type": "string", "maxLength": 2000 },
+        "panelPosition": { "type": "string", "enum": ["below", "left", "above", "right"] },
+        "textureTheme": { "type": "string" },
+        "customImageData": { "type": "string" },
+        "createdBy": { "type": "string" },
+        "createdAt": { "type": "string" },
+        "updatedAt": { "type": "string" }
+      },
+      "required": ["title", "botanicalSpecies", "medium", "dimensions", "year", "frameShape", "biasLightColor", "biasLightIntensity", "description", "inspiration", "panelPosition", "textureTheme"]
+    },
+    "ArtworkReview": {
+      "title": "Artwork Review",
+      "description": "User feedback and ratings for artworks",
+      "type": "object",
+      "properties": {
+        "artworkId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string", "maxLength": 1000 },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["artworkId", "userId", "userName", "userEmail", "rating", "comment", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/artworks/{artworkId}": {
+      "schema": "BotanicalArtwork",
+      "description": "Main collection for exhibition artworks"
+    },
+    "/reviews/{reviewId}": {
+      "schema": "ArtworkReview",
+      "description": "Public reviews for artworks"
+    }
+  }
+}

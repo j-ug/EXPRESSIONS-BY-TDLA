@@ -61,7 +61,7 @@ export const MobileHorizontalControls: React.FC<MobileHorizontalControlsProps> =
         <div className="flex items-center gap-1.5 font-serif truncate max-w-[210px]">
           <Compass className="w-3.5 h-3.5 text-[#85582f] shrink-0" />
           <span className="font-semibold text-[#2d1f14] truncate">
-            {isInGallery ? `Plate 0${activeArtworkIndex + 1}: ${currentArt.title}` : 'Gallery Vestibule'}
+            {isInGallery && currentArt ? `Plate 0${activeArtworkIndex + 1}: ${currentArt.title}` : 'Gallery Vestibule'}
           </span>
         </div>
         <div className="text-[10px] font-mono text-[#8c6f55] uppercase tracking-wider animate-pulse flex items-center gap-1">
