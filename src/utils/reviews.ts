@@ -7,7 +7,7 @@ const INITIAL_REVIEWS: ArtworkReview[] = [];
 
 export function isUserAdmin(user?: User | null): boolean {
   if (!user) return false;
-  return user.role === 'admin' || user.isAdmin === true || user.email === 'admin123@gmail.com';
+  return user.role === 'admin' || user.isAdmin === true;
 }
 
 export function getStoredReviews(): ArtworkReview[] {

@@ -1,12 +1,7 @@
 import React, { useState } from 'react';
 import { BotanicalArtwork, User } from '../types';
-import {
-  getAllArtworks,
-  deleteStoredArtwork,
-  updateStoredArtwork,
-  clearAllStoredArtworks,
-} from '../utils/artworksStorage';
-import { deleteArtwork } from '../lib/artworks';
+import { replaceStoredArtworks } from '../utils/artworksStorage';
+import { deleteAllArtworks, deleteArtwork, updateArtwork } from '../lib/artworks';
 import { EditArtworkModal } from './EditArtworkModal';
 import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, X } from 'lucide-react';
 
@@ -26,16 +21,18 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
   onOpenAddCanvas,
 }) => {
   const [editingArtwork, setEditingArtwork] = useState<BotanicalArtwork | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  if (!currentUser?.isAdmin) return null;
 
   const handleDeleteSingle = async (id: string, title: string) => {
     if (!window.confirm(`Are you sure you want to delete canvas "${title}"?`)) return;
     try {
       await deleteArtwork(id);
-    } catch (e) {
-      console.warn('Firestore deletion skip:', e);
+      onUpdateArtworks(replaceStoredArtworks(artworks.filter((art) => art.id !== id)));
+    } catch {
+      setError('The canvas could not be deleted. Please verify your admin access.');
     }
-    const updated = deleteStoredArtwork(id);
-    onUpdateArtworks(updated);
   };
 
   const handleDeleteAll = async () => {
@@ -47,27 +44,22 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       return;
     }
 
-    // Try deleting from Firestore if any exist
-    for (const art of artworks) {
-      try {
-        await deleteArtwork(art.id);
-      } catch (e) {
-        // ignore
-      }
+    try {
+      await deleteAllArtworks();
+      onUpdateArtworks(replaceStoredArtworks([]));
+    } catch {
+      setError('The gallery could not be cleared. No local items were removed.');
     }
-
-    const updated = clearAllStoredArtworks();
-    onUpdateArtworks(updated);
   };
 
-  const handleSaveEdit = (updatedArt: BotanicalArtwork) => {
+  const handleSaveEdit = async (updatedArt: BotanicalArtwork) => {
     try {
-      updateStoredArtwork(updatedArt);
-    } catch (e) {
-      console.warn('Edit update error:', e);
+      await updateArtwork(updatedArt.id, updatedArt);
+      const updated = artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art));
+      onUpdateArtworks(replaceStoredArtworks(updated));
+    } catch {
+      setError('Canvas details could not be saved. Please verify your admin access.');
     }
-    const newList = getAllArtworks();
-    onUpdateArtworks(newList);
   };
 
   return (
@@ -97,6 +89,11 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
         </div>
 
         {/* Action Toolbar */}
+        {error && (
+          <div className="mb-4 p-3 rounded-xl bg-[#fdf1f1] border border-[#f5c6c6] text-xs text-[#a33232]">
+            {error}
+          </div>
+        )}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-4 rounded-2xl bg-[#f5ecdf] border border-[#dfd2c0]">
           <div className="flex items-center gap-2">
             <button
