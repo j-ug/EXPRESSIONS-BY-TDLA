@@ -53,6 +53,7 @@ export const MobileHorizontalControls: React.FC<MobileHorizontalControlsProps> =
 
   const currentArt = artworks[activeArtworkIndex] || artworks[0];
 
+  if (!currentArt) return null;
   return (
     <div className="fixed bottom-0 left-0 right-0 z-40 p-3 bg-[#fffdf9]/95 backdrop-blur-lg border-t border-[#ded0be] shadow-2xl transition-all md:hidden">
       {/* Top micro status bar: current artwork name & swipe tip */}

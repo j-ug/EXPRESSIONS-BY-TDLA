@@ -24,7 +24,6 @@ export default function App() {
   const [addCanvasModalOpen, setAddCanvasModalOpen] = useState(false);
   const [adminDashboardOpen, setAdminDashboardOpen] = useState(false);
   const [deleteConfirmationOpen, setDeleteConfirmationOpen] = useState(false);
-  const [user, setUser] = useState<User | null>(null);
 
   const [galleryState, setGalleryState] = useState<GalleryState>({
     scrollProgress: 0,
@@ -37,22 +36,36 @@ export default function App() {
   });
 
   const [notification, setNotification] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Firebase is authoritative; local storage is only an offline render cache.
+  // Supabase is authoritative; local storage is only an offline render cache.
   useEffect(() => {
     const loadArtworks = async () => {
       try {
         const remote = await getArtworks();
         setArtworks(replaceStoredArtworks(remote));
       } catch (e) {
-        console.warn('Using cached artworks because Firestore is unavailable:', e);
+        setLoadError(e instanceof Error ? e.message : 'Gallery service is unavailable. Showing cached content.');
       }
     };
     void loadArtworks();
   }, []);
 
   useEffect(() => subscribeToAuth(setCurrentUser), []);
+  useEffect(() => {
+    if (!currentUser?.isAdmin) {
+      setAdminDashboardOpen(false);
+      setAddCanvasModalOpen(false);
+    }
+  }, [currentUser]);
+  useEffect(() => {
+    setGalleryState(prev => ({
+      ...prev,
+      activeArtworkIndex: Math.max(0, Math.min(prev.activeArtworkIndex, artworks.length - 1)),
+      selectedArtwork: artworks.find(art => art.id === prev.selectedArtwork?.id) || null,
+    }));
+  }, [artworks]);
 
   // Trigger non-intrusive notification banner
   const triggerNotification = useCallback((msg: string) => {
@@ -220,9 +233,11 @@ export default function App() {
 
   // Auth handlers
   const handleSignOut = async () => {
-    await logoutUser();
-    setCurrentUser(null);
-    triggerNotification('Signed out successfully.');
+    try {
+      await logoutUser();
+      setCurrentUser(null);
+      triggerNotification('Signed out successfully.');
+    } catch { triggerNotification('Sign out failed. Please try again.'); }
   };
 
   const handleLoginSuccess = (user: User) => {
@@ -236,16 +251,13 @@ export default function App() {
 
   // Admin canvas handler
   const handleAddCanvas = async (newArtwork: BotanicalArtwork) => {
-    if (!currentUser?.isAdmin) return;
+    if (!currentUser?.isAdmin) throw new Error('Administrator access is required.');
     let updated: BotanicalArtwork[];
-    try {
-      await saveArtwork(newArtwork);
-      updated = replaceStoredArtworks([...artworks, newArtwork]);
+    {
+      const saved = await saveArtwork(newArtwork);
+      updated = replaceStoredArtworks([...artworks, saved]);
       setArtworks(updated);
       triggerNotification(`New canvas “${newArtwork.title}” mounted in gallery!`);
-    } catch {
-      triggerNotification('Could not add the canvas. Admin permission is required.');
-      return;
     }
     // Scroll to the newly added canvas station
     setTimeout(() => {
@@ -261,7 +273,7 @@ export default function App() {
   const performDeleteArtwork = async () => {
     const activeArt = artworks[galleryState.activeArtworkIndex];
     if (activeArt) {
-      // Remove from Firestore
+      // Remove from Supabase
       await deleteArtwork(activeArt.id);
       // Remove from localStorage
       const updated = replaceStoredArtworks(artworks.filter((art) => art.id !== activeArt.id));
@@ -271,13 +283,8 @@ export default function App() {
   };
 
   const handleUpdateArtwork = async (updatedArt: BotanicalArtwork) => {
-    if (!currentUser?.isAdmin) return;
-    try {
-      await updateArtwork(updatedArt.id, updatedArt);
-    } catch {
-      triggerNotification('Could not save changes. Admin permission is required.');
-      return;
-    }
+    if (!currentUser?.isAdmin) throw new Error('Administrator access is required.');
+    updatedArt = await updateArtwork(updatedArt.id, updatedArt);
     const updatedList = replaceStoredArtworks(
       artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art))
     );
@@ -293,6 +300,9 @@ export default function App() {
 
   return (
     <div className="relative min-h-screen bg-[#f7f2eb] text-[#2d1f14] selection:bg-[#dfcdb9] selection:text-[#23180f]">
+      {loadError && <div role="alert" className="fixed top-20 inset-x-4 z-50 bg-amber-100 text-amber-950 p-3 rounded-xl text-sm">
+        {loadError} — Changes require a working connection. <button onClick={() => window.location.reload()}>Retry</button>
+      </div>}
       {/* Top Navigation */}
       <Navigation
         scrollProgress={galleryState.scrollProgress}
@@ -326,7 +336,7 @@ export default function App() {
       )}
 
       {/* Main Experience: 3D Canvas vs 2D Fallback */}
-      {galleryState.viewMode === '3d' ? (
+      {galleryState.viewMode === '3d' && artworks.length > 0 ? (
         <>
           {/* Fixed 3D Viewport in background */}
           <div className="fixed inset-0 z-10 w-full h-full">
@@ -402,6 +412,7 @@ export default function App() {
         currentUser={currentUser}
         onOpenAuth={() => setAuthModalOpen(true)}
         onUpdateArtwork={handleUpdateArtwork}
+        onDeleteArtwork={(id) => setArtworks(prev => replaceStoredArtworks(prev.filter(art => art.id !== id)))}
       />
 
       {/* User Login & Signup Modal */}
@@ -413,7 +424,7 @@ export default function App() {
 
       {/* Admin Add Canvas Modal */}
       <AddCanvasModal
-        isOpen={addCanvasModalOpen}
+        isOpen={addCanvasModalOpen && currentUser?.isAdmin === true}
         onClose={() => setAddCanvasModalOpen(false)}
         onAddArtwork={handleAddCanvas}
       />

@@ -8,7 +8,6 @@ import {
   updateArtworkReview,
   isUserAdmin,
 } from '../utils/reviews';
-import { updateStoredArtwork } from '../utils/artworksStorage';
 import {
   X,
   Sparkles,
@@ -34,7 +33,7 @@ interface ArtworkDetailModalProps {
   onClose: () => void;
   currentUser?: User | null;
   onOpenAuth?: () => void;
-  onUpdateArtwork?: (artwork: BotanicalArtwork) => void;
+  onUpdateArtwork?: (artwork: BotanicalArtwork) => void | Promise<void>;
   onDeleteArtwork?: (artworkId: string) => void;
 }
 
@@ -78,7 +77,19 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
     setEditingReviewId(null);
 
     if (canvasRef.current) {
-      const tex = createArtworkTexture(artwork.textureTheme, artwork.customImageData);
+      if (artwork.customImageData) {
+        const image = new Image();
+        let cancelled = false;
+        image.onload = () => {
+          if (cancelled || !canvasRef.current) return;
+          canvasRef.current.width = image.naturalWidth;
+          canvasRef.current.height = image.naturalHeight;
+          canvasRef.current.getContext('2d')?.drawImage(image, 0, 0);
+        };
+        image.src = artwork.customImageData;
+        return () => { cancelled = true; };
+      }
+      const tex = createArtworkTexture(artwork.textureTheme);
       const sourceCanvas = tex.image as HTMLCanvasElement;
       const destCanvas = canvasRef.current;
       if (sourceCanvas && destCanvas) {
@@ -96,9 +107,11 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
 
   const handleDeleteArtwork = async () => {
     if (!window.confirm('Are you sure you want to delete this artwork?')) return;
-    await deleteArtwork(artwork.id);
-    if (onDeleteArtwork) onDeleteArtwork(artwork.id);
-    onClose();
+    try {
+      await deleteArtwork(artwork.id);
+      if (onDeleteArtwork) onDeleteArtwork(artwork.id);
+      onClose();
+    } catch (error) { alert(error instanceof Error ? error.message : 'Could not delete canvas.'); }
   };
 
   const handleDeleteReview = (reviewId: string) => {
@@ -312,17 +325,17 @@ export const ArtworkDetailModal: React.FC<ArtworkDetailModalProps> = ({
                 Canvas Acquisition Price
               </span>
               <div className="font-serif text-2xl font-bold text-[#85582f] tracking-wide mt-0.5">
-                {artwork.price || '₹18,500'}
+                {artwork.price || 'Price on request'}
               </div>
             </div>
 
-            {isEditing && (
+            {isEditing && isAdmin && (
               <EditArtworkModal
                 artwork={artwork}
                 isOpen={isEditing}
                 onClose={() => setIsEditing(false)}
-                onSave={(updated) => {
-                  if (onUpdateArtwork) onUpdateArtwork(updated);
+                onSave={async (updated) => {
+                  if (onUpdateArtwork) await onUpdateArtwork(updated);
                 }}
               />
             )}

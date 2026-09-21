@@ -5,8 +5,8 @@ import { BotanicalArtwork, FrameShape } from '../types';
 interface AddCanvasModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onAddCanvas?: (artwork: Omit<BotanicalArtwork, 'id'>) => void;
-  onAddArtwork?: (artwork: BotanicalArtwork) => void;
+  onAddCanvas?: (artwork: Omit<BotanicalArtwork, 'id'>) => void | Promise<void>;
+  onAddArtwork?: (artwork: BotanicalArtwork) => void | Promise<void>;
 }
 
 const COLOR_PRESETS = [
@@ -37,6 +37,7 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
   const [inspiration, setInspiration] = useState('');
   const [error, setError] = useState<string | null>(null);
 
+  const [saving, setSaving] = useState(false);
   if (!isOpen) return null;
 
   const handleImageFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,9 +57,10 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
     reader.readAsDataURL(file);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+    if (saving) return;
 
     if (!title.trim()) {
       setError('Please provide a title for the botanical artwork.');
@@ -93,11 +95,16 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
       createdBy: 'Curator Admin',
     };
 
-    const id = `artwork-${Date.now()}`;
+    const id = crypto.randomUUID();
     const fullArt: BotanicalArtwork = { ...newArt, id };
-    if (onAddArtwork) onAddArtwork(fullArt);
-    if (onAddCanvas) onAddCanvas(newArt);
-    onClose();
+    setSaving(true);
+    try {
+      if (onAddArtwork) await onAddArtwork(fullArt);
+      else if (onAddCanvas) await onAddCanvas(newArt);
+      setTitle(''); setCustomImageData(undefined); setDescription(''); setInspiration('');
+      onClose();
+    } catch (error) { setError(error instanceof Error ? error.message : 'Could not save canvas.'); }
+    finally { setSaving(false); }
   };
 
   return (
@@ -336,6 +343,7 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
           <div className="pt-2">
             <button
               type="submit"
+              disabled={saving}
               className="w-full py-2.5 rounded-xl bg-[#85582f] hover:bg-[#6e4622] text-[#fffefa] text-xs font-semibold shadow-md border border-[#9e6d3d] transition-all flex items-center justify-center gap-2 cursor-pointer"
             >
               <Check className="w-4 h-4" />
