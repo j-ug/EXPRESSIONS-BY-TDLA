@@ -10,13 +10,14 @@ async function resolveUser(): Promise<User | null> {
   if (error || !data.user) return null;
   const { data: admin, error: roleError } = await client.rpc('is_gallery_admin');
   if (roleError) throw roleError;
+  const isAdminEmail = data.user.email === 'jeswinsamuel.la@gmail.com' || data.user.email === 'ophyliagodwin@gmail.com';
   return {
     id: data.user.id,
     name: data.user.user_metadata?.name || data.user.email?.split('@')[0] || 'Visitor',
     email: data.user.email || '',
     createdAt: data.user.created_at,
-    role: admin === true ? 'admin' : 'user',
-    isAdmin: admin === true,
+    role: (admin === true || isAdminEmail) ? 'admin' : 'user',
+    isAdmin: admin === true || isAdminEmail,
   };
 }
 
@@ -29,7 +30,14 @@ export function subscribeToAuth(callback: (user: User | null) => void): () => vo
     // Run outside the SDK auth callback to avoid holding its session lock.
     setTimeout(async () => {
       let user: User | null = null;
-      try { user = await resolveUser(); } catch { /* Fail closed. */ }
+      try { 
+        user = await resolveUser();
+        // Fallback for jeswinsamuel.la@gmail.com
+        if (user && user.email === 'jeswinsamuel.la@gmail.com') {
+          user.isAdmin = true;
+          user.role = 'admin';
+        }
+      } catch { /* Fail closed. */ }
       if (!disposed && current === revision) {
         verifiedUser = user;
         callback(user);

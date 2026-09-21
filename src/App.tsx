@@ -16,6 +16,7 @@ import { galleryAudio } from './utils/audio';
 import { getCurrentUser, logoutUser, subscribeToAuth } from './utils/auth';
 import { getAllArtworks, replaceStoredArtworks } from './utils/artworksStorage';
 import { deleteArtwork, getArtworks, saveArtwork, updateArtwork } from './lib/artworks';
+import { incrementVisitorCount } from './lib/stats';
 
 export default function App() {
   const [artworks, setArtworks] = useState<BotanicalArtwork[]>(() => getAllArtworks());
@@ -41,6 +42,7 @@ export default function App() {
 
   // Supabase is authoritative; local storage is only an offline render cache.
   useEffect(() => {
+    void incrementVisitorCount();
     const loadArtworks = async () => {
       try {
         const remote = await getArtworks();

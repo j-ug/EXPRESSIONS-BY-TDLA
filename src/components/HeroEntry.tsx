@@ -1,6 +1,7 @@
 import React from 'react';
-import { ArrowDown, Sparkles } from 'lucide-react';
+import { ArrowDown, Sparkles, Users, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
+import { useGalleryStats } from '../lib/stats';
 
 interface HeroEntryProps {
   scrollProgress: number;
@@ -8,6 +9,7 @@ interface HeroEntryProps {
 }
 
 export const HeroEntry: React.FC<HeroEntryProps> = ({ scrollProgress, onEnterGallery }) => {
+  const stats = useGalleryStats();
   // Fade out as scroll begins entering the gallery room
   const opacity = Math.max(0, 1 - scrollProgress * 12);
   const translateY = scrollProgress * 100;
@@ -76,9 +78,37 @@ export const HeroEntry: React.FC<HeroEntryProps> = ({ scrollProgress, onEnterGal
         </p>
 
         {/* Poetic description */}
-        <p className="text-sm sm:text-base text-[#634d3a] max-w-lg mx-auto leading-relaxed mb-8">
+        <p className="text-sm sm:text-base text-[#634d3a] max-w-lg mx-auto leading-relaxed mb-6">
           A scroll-driven 3D walk through organic botanical landscapes — sculpted from rain-skeletonized leaves, sun-cured temple lotus petals, and natural Kaveri basin pigments.
         </p>
+
+        {/* Gallery Stats / Community Pulse */}
+        <div className="flex items-center gap-6 mb-10 px-6 py-2.5 rounded-2xl bg-[#fdfaf6]/50 border border-[#e4d6c5]/60 backdrop-blur-sm">
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-25" />
+              <Globe className="w-4 h-4 text-green-600 relative z-10" />
+            </div>
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] font-mono uppercase tracking-tight text-[#8c6f55]">Active Now</span>
+              <span className="text-sm font-bold text-[#2d1f14] leading-tight">
+                {stats.active_visitors.toLocaleString()} {stats.active_visitors === 1 ? 'Curator' : 'Visitors'}
+              </span>
+            </div>
+          </div>
+
+          <div className="w-px h-8 bg-[#e4d6c5]" />
+
+          <div className="flex items-center gap-2">
+            <Users className="w-4 h-4 text-[#85582f]" />
+            <div className="flex flex-col items-start">
+              <span className="text-[10px] font-mono uppercase tracking-tight text-[#8c6f55]">Total Journeyers</span>
+              <span className="text-sm font-bold text-[#2d1f14] leading-tight">
+                {stats.total_visitors.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        </div>
 
         {/* Subtle CTA: Enter the Gallery */}
         <div className="flex flex-col items-center gap-4">

@@ -33,8 +33,11 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const [webglSupported, setWebglSupported] = useState<boolean>(true);
   const [hoveredArtwork, setHoveredArtwork] = useState<BotanicalArtwork | null>(null);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Keep callbacks fresh in refs to avoid tearing down the WebGL scene
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
+
+  // Keep callbacks fresh in refs
   const callbacksRef = useRef({
     onArtworkChange,
     onGalleryEnter,
@@ -71,18 +74,15 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     artwork: BotanicalArtwork;
     group: THREE.Group;
     canvasMesh: THREE.Mesh;
-    canvasMaterial: THREE.MeshLambertMaterial; // Updated to Lambert
+    canvasMaterial: THREE.MeshStandardMaterial; // Updated to Standard
     texture: THREE.Texture; // Store texture reference
     haloMesh: THREE.Mesh;
     biasPointLight: THREE.PointLight;
     spotLight: THREE.SpotLight; // Added spotLight
-    particleSystem: THREE.Points;
-    particlePositions: Float32Array;
-    particleVelocities: Float32Array;
-    particleOriginals: Float32Array;
     xStation: number;
   }
   const artworkObjectsRef = useRef<ArtworkObject[]>([]);
+  const loadingPlaquesRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
 
   // Mouse parallax interpolation
   const mouseTargetRef = useRef({ x: 0, y: 0 });
@@ -109,9 +109,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
   // Main Three.js Scene Setup (mounts once and stays alive)
   useEffect(() => {
-    if (!containerRef.current || !webglSupported) return;
+    if (!canvasContainerRef.current || !webglSupported) return;
 
-    const container = containerRef.current;
+    const container = canvasContainerRef.current;
     const width = Math.max(10, container.clientWidth || window.innerWidth);
     const height = Math.max(10, container.clientHeight || window.innerHeight);
 
@@ -156,7 +156,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     renderer.domElement.style.width = '100%';
     renderer.domElement.style.height = '100%';
 
-    container.innerHTML = '';
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -284,8 +283,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     portalLintel.position.set(0, wallHeight - 0.3, 12);
     scene.add(portalLintel);
 
-    // 6. Build Artwork Stations & Disintegration Particle Systems
-    const leafParticleTex = createLeafParticleTexture();
+    // 6. Build Artwork Stations
     const artworkObjects: ArtworkObject[] = [];
 
     // --- Build Trevor (GTA Style) 3D Primitive Character ---
@@ -392,10 +390,12 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       }
 
       // Canvas Face Mesh with pristine botanical clarity & subtle self-illumination
-      const canvasMat = new THREE.MeshLambertMaterial({
+      const canvasMat = new THREE.MeshStandardMaterial({
         map: artTexture,
+        roughness: 0.8,
+        metalness: 0.1,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.45, // Increased from 0.15 for 100% visibility
+        emissiveIntensity: 0.05, // Subtle self-glow so it is never pitch black
         transparent: false,
         opacity: 1.0,
       });
@@ -508,48 +508,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       spotLight.castShadow = false;
       scene.add(spotLight);
 
-      // Disintegration Particle System (leaves and floral petals)
-      const particleCount = 120;
-      const particleGeo = new THREE.BufferGeometry();
-      const pPositions = new Float32Array(particleCount * 3);
-      const pOriginals = new Float32Array(particleCount * 3);
-      const pVelocities = new Float32Array(particleCount * 3);
-
-      for (let p = 0; p < particleCount; p++) {
-        // Distribute across the surface of the canvas
-        const px = (Math.random() - 0.5) * (frameW * 0.95);
-        const py = (Math.random() - 0.5) * (frameH * 0.95);
-        const pz = 0.04 + (Math.random() - 0.5) * 0.04;
-
-        pPositions[p * 3] = px;
-        pPositions[p * 3 + 1] = py;
-        pPositions[p * 3 + 2] = pz;
-
-        pOriginals[p * 3] = px;
-        pOriginals[p * 3 + 1] = py;
-        pOriginals[p * 3 + 2] = pz;
-
-        // Dispersal velocity: gentle floating upward & rightward breeze
-        pVelocities[p * 3] = 0.4 + Math.random() * 1.2;
-        pVelocities[p * 3 + 1] = 0.2 + Math.random() * 0.8;
-        pVelocities[p * 3 + 2] = 0.5 + Math.random() * 1.5;
-      }
-
-      particleGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-
-      const particleMat = new THREE.PointsMaterial({
-        size: 0.14,
-        map: leafParticleTex,
-        transparent: true,
-        opacity: 0.0,
-        blending: THREE.NormalBlending,
-        depthWrite: false,
-      });
-
-      const particleSystem = new THREE.Points(particleGeo, particleMat);
-      particleSystem.visible = false;
-      artGroup.add(particleSystem);
-
       artworkObjects.push({
         artwork: art,
         group: artGroup,
@@ -559,10 +517,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         haloMesh: glowPlane,
         biasPointLight: biasLight,
         spotLight: spotLight,
-        particleSystem,
-        particlePositions: pPositions,
-        particleVelocities: pVelocities,
-        particleOriginals: pOriginals,
         xStation: xPos,
       });
     });
@@ -576,8 +530,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
     // Mouse Move Parallax & Raycast Listener (on container element, not window)
     const onPointerMove = (e: MouseEvent) => {
-      if (!containerRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      if (!canvasContainerRef.current) return;
+      const rect = canvasContainerRef.current.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
 
       const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -586,8 +540,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     };
 
     const onPointerClick = (e: MouseEvent) => {
-      if (!containerRef.current || !cameraRef.current) return;
-      const rect = containerRef.current.getBoundingClientRect();
+      if (!canvasContainerRef.current || !cameraRef.current) return;
+      const rect = canvasContainerRef.current.getBoundingClientRect();
       if (rect.width <= 0 || rect.height <= 0) return;
 
       const normX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -613,9 +567,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     };
 
     const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length > 0 && containerRef.current) {
+      if (e.touches.length > 0 && canvasContainerRef.current) {
         const touch = e.touches[0];
-        const rect = containerRef.current.getBoundingClientRect();
+        const rect = canvasContainerRef.current.getBoundingClientRect();
         if (rect.width > 0 && rect.height > 0) {
           const normX = ((touch.clientX - rect.left) / rect.width) * 2 - 1;
           const normY = -(((touch.clientY - rect.top) / rect.height) * 2 - 1);
@@ -657,6 +611,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
+    // Reuse objects in animate loop
+    const raycaster = new THREE.Raycaster();
+    const mouseVector = new THREE.Vector2();
+
     // 8. Animation & Render Loop
     let clock = new THREE.Clock();
     let lastAnnouncedIndex = -1;
@@ -686,8 +644,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
       // Run hover raycaster once per frame in animate loop
       try {
-        const mouseVector = new THREE.Vector2(mouseCurrentRef.current.x, mouseCurrentRef.current.y);
-        const raycaster = new THREE.Raycaster();
+        mouseVector.set(mouseCurrentRef.current.x, mouseCurrentRef.current.y);
         raycaster.setFromCamera(mouseVector, camera);
 
         const meshesToTest = artworkObjects.map((o) => o.canvasMesh);
@@ -698,11 +655,11 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           const artIndex = hit.userData.artworkIndex;
           if (artIndex !== undefined && artworks[artIndex]) {
             setHoveredArtwork(artworks[artIndex]);
-            if (containerRef.current) containerRef.current.style.cursor = 'pointer';
+            if (canvasContainerRef.current) canvasContainerRef.current.style.cursor = 'pointer';
           }
         } else {
           setHoveredArtwork(null);
-          if (containerRef.current) containerRef.current.style.cursor = 'default';
+          if (canvasContainerRef.current) canvasContainerRef.current.style.cursor = 'default';
         }
       } catch {
         // Suppress
@@ -848,8 +805,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           vector.project(camera);
           
           if (vector.z < 1) {
-            const x = (vector.x + 1) / 2 * (containerRef.current?.clientWidth || 0);
-            const y = -(vector.y - 1) / 2 * (containerRef.current?.clientHeight || 0);
+            const x = (vector.x + 1) / 2 * (canvasContainerRef.current?.clientWidth || 0);
+            const y = -(vector.y - 1) / 2 * (canvasContainerRef.current?.clientHeight || 0);
             plaque.style.left = `${x}px`;
             plaque.style.top = `${y}px`;
             plaque.style.display = 'flex';
@@ -861,6 +818,29 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         // Position on wall adjusts if wall moves
         item.group.position.z = -currentWidth / 2 + 0.14;
 
+        const isCurrentlyActive = idx === activeArtworkIndex;
+
+        // Handle per-artwork loading spinner
+        const loadingPlaque = loadingPlaquesRef.current[item.artwork.id];
+        const isTexLoading = (item.texture as any).isLoading === true;
+        if (loadingPlaque) {
+          if (isTexLoading) {
+            const vector = new THREE.Vector3(item.group.position.x, item.group.position.y, item.group.position.z);
+            vector.project(camera);
+            if (vector.z < 1) {
+              const x = (vector.x + 1) / 2 * (canvasContainerRef.current?.clientWidth || 0);
+              const y = -(vector.y - 1) / 2 * (canvasContainerRef.current?.clientHeight || 0);
+              loadingPlaque.style.left = `${x}px`;
+              loadingPlaque.style.top = `${y}px`;
+              loadingPlaque.style.display = 'flex';
+            } else {
+              loadingPlaque.style.display = 'none';
+            }
+          } else {
+            loadingPlaque.style.display = 'none';
+          }
+        }
+
         // Ensure canvas material map stays assigned
         if (!item.canvasMaterial.map) {
           item.canvasMaterial.map = item.texture;
@@ -870,31 +850,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         // Keep all canvases completely solid, fully opaque, and crisp at all times!
         item.canvasMaterial.opacity = 1.0;
         item.canvasMaterial.transparent = false;
-
-        // Ambient botanical petals & pollen drifting gently around active artwork
-        const isCurrentlyActive = idx === activeArtworkIndex;
-        if (isCurrentlyActive) {
-          item.particleSystem.visible = true;
-          const pMat = item.particleSystem.material as THREE.PointsMaterial;
-          pMat.opacity = 0.65;
-
-          const positions = item.particlePositions;
-          const originals = item.particleOriginals;
-          const count = positions.length / 3;
-
-          for (let i = 0; i < count; i++) {
-            const ix = i * 3;
-            const iy = ix + 1;
-            const iz = ix + 2;
-
-            positions[ix] = originals[ix] + Math.sin(time * 1.5 + i * 0.3) * 0.25;
-            positions[iy] = originals[iy] + Math.cos(time * 1.2 + i * 0.2) * 0.2;
-            positions[iz] = originals[iz] + 0.35 + Math.sin(time * 0.8 + i) * 0.15;
-          }
-          item.particleSystem.geometry.attributes.position.needsUpdate = true;
-        } else {
-          item.particleSystem.visible = false;
-        }
 
         // Subtle bias light breathing pulse
         const pulse = 1.0 + Math.sin(time * 2.0 + idx) * 0.08;
@@ -924,6 +879,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     };
 
     animate();
+
+    // Signal loading finished after scene setup
+    setLoading(false);
 
     // Cleanup on unmount
     return () => {
@@ -957,6 +915,17 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
   return (
     <div className="relative w-full h-full overflow-hidden select-none" ref={containerRef}>
+      {/* Three.js Canvas Container */}
+      <div className="absolute inset-0 z-10" ref={canvasContainerRef} />
+
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-[#f7efe3]/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-[#85582f]/30 border-t-[#85582f] rounded-full animate-spin" />
+            <p className="font-serif text-sm text-[#85582f] animate-pulse">Mounting Exhibition...</p>
+          </div>
+        </div>
+      )}
       {artworks.map((art) => (
         <div
           key={art.id}
@@ -968,6 +937,16 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           <p className="text-[10px] text-[#4a3a2a] uppercase tracking-wide">{art.tamilTitle}</p>
           <div className="w-full h-[1px] bg-[#d0c0b0] my-1.5" />
           <p className="text-[10px] text-[#2d1f14] font-semibold">{art.medium} • {art.year}</p>
+        </div>
+      ))}
+      {artworks.map((art) => (
+        <div
+          key={`loader-${art.id}`}
+          ref={(el) => { loadingPlaquesRef.current[art.id] = el; }}
+          className="absolute z-30 flex flex-col items-center justify-center pointer-events-none transform -translate-x-1/2 -translate-y-1/2"
+          style={{ display: 'none' }}
+        >
+          <div className="w-8 h-8 border-2 border-[#85582f]/20 border-t-[#85582f] rounded-full animate-spin" />
         </div>
       ))}
       {/* Floating subtle hover tooltip when hovering artwork in 3D */}

@@ -74,7 +74,7 @@ async function setup() {
           description: 'A blank canvas waiting for botanical curation. This specimen preserves the organic venation of indigenous flora.',
           inspiration: 'The sacred riverbanks of the Kaveri basin.',
           panelPosition: 'below',
-          textureTheme: 'peepal_sacred',
+          textureTheme: 'custom',
           createdAt: new Date().toISOString()
         };
         

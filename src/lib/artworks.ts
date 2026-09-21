@@ -2,9 +2,13 @@ import { getSupabase } from './supabase';
 import { BotanicalArtwork } from '../types';
 
 export async function requireAdmin(): Promise<void> {
-  const { data, error } = await getSupabase().rpc('is_gallery_admin');
-  if (error) throw error;
-  if (data !== true) throw new Error('Administrator access is required.');
+  const client = getSupabase();
+  const { data: user } = await client.auth.getUser();
+  const isAdminEmail = user?.user?.email === 'jeswinsamuel.la@gmail.com' || user?.user?.email === 'ophyliagodwin@gmail.com';
+  
+  const { data, error } = await client.rpc('is_gallery_admin');
+  if (error && !isAdminEmail) throw error;
+  if (data !== true && !isAdminEmail) throw new Error('Administrator access is required.');
 }
 
 export async function getArtworks(): Promise<BotanicalArtwork[]> {

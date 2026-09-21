@@ -17,16 +17,20 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
 
-  // 1. Base handmade paper background
+  // 1. Initial Fill - Ensure we have a light background IMMEDIATELY
+  ctx.fillStyle = '#f7f2eb';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // 2. Base handmade paper background
   const grad = ctx.createRadialGradient(512, 512, 50, 512, 512, 700);
-  grad.addColorStop(0, '#f7f4ec');
-  grad.addColorStop(0.7, '#ede7dc');
-  grad.addColorStop(1, '#dfd6c4');
+  grad.addColorStop(0, '#fdfaf2');
+  grad.addColorStop(0.7, '#f2ebe0');
+  grad.addColorStop(1, '#e8dfcc');
   ctx.fillStyle = grad;
   ctx.fillRect(0, 0, 1024, 1024);
 
   // Add subtle organic paper fibers & noise
-  ctx.fillStyle = 'rgba(90, 75, 55, 0.035)';
+  ctx.fillStyle = 'rgba(90, 75, 55, 0.04)';
   for (let i = 0; i < 4000; i++) {
     const x = Math.random() * 1024;
     const y = Math.random() * 1024;
@@ -36,63 +40,92 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   }
 
   // Draw organic deckled paper border
-  ctx.strokeStyle = 'rgba(120, 105, 80, 0.18)';
+  ctx.strokeStyle = 'rgba(120, 105, 80, 0.15)';
   ctx.lineWidth = 14;
   ctx.strokeRect(30, 30, 964, 964);
-  ctx.strokeStyle = 'rgba(120, 105, 80, 0.35)';
+  ctx.strokeStyle = 'rgba(120, 105, 80, 0.25)';
   ctx.lineWidth = 2;
   ctx.strokeRect(42, 42, 940, 940);
 
-  const texture = new THREE.CanvasTexture(canvas);
+  const texture = new THREE.CanvasTexture(canvas) as THREE.CanvasTexture & { isLoading?: boolean };
   texture.generateMipmaps = true;
   texture.minFilter = THREE.LinearMipmapLinearFilter;
   texture.magFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.anisotropy = 16;
+  texture.isLoading = false;
 
   // If user provided a custom image, draw it onto the deckled canvas
-  if (customImageData) {
+  if (customImageData && customImageData.length > 10) {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = customImageData;
-    if (img.complete && img.naturalWidth > 0) {
-      // Draw centered with contain aspect ratio
-      const pad = 60;
+    
+    // Only set crossOrigin if it is NOT a data URL
+    if (!customImageData.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
+
+    texture.isLoading = true;
+
+    img.onload = () => {
+      // Clear with background color again before drawing art
+      ctx.fillStyle = '#f7f2eb';
+      ctx.fillRect(0, 0, 1024, 1024);
+      
+      const pad = 80;
       const targetW = 1024 - pad * 2;
       const targetH = 1024 - pad * 2;
+
       const imgAspect = img.naturalWidth / img.naturalHeight;
       let drawW = targetW;
       let drawH = targetH;
+
       if (imgAspect > 1) {
         drawH = targetW / imgAspect;
       } else {
         drawW = targetH * imgAspect;
       }
+
       const drawX = (1024 - drawW) / 2;
       const drawY = (1024 - drawH) / 2;
+      
+      // Draw a subtle shadow behind the art on the paper for depth
+      ctx.shadowColor = 'rgba(0,0,0,0.2)';
+      ctx.shadowBlur = 20;
+      ctx.shadowOffsetX = 4;
+      ctx.shadowOffsetY = 8;
+      
       ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      
+      // Reset shadow for labels
+      ctx.shadowColor = 'transparent';
+      ctx.shadowBlur = 0;
+      ctx.shadowOffsetX = 0;
+      ctx.shadowOffsetY = 0;
+      
+      // Re-draw signature/tags over the art if needed, or just let them stay at the bottom
+      ctx.font = 'italic 16px "Cormorant Garamond", Georgia, serif';
+      ctx.fillStyle = 'rgba(60, 50, 40, 0.4)';
+      ctx.textAlign = 'left';
+      ctx.fillText('Herbarium Tamilnadu • Specimen Capture', 60, 970);
+      ctx.textAlign = 'right';
+      ctx.fillText('Dr. G. Ophylia Vinodhini', 964, 970);
+
       texture.needsUpdate = true;
-    } else {
-      // Setup onload for asynchronous image loading
-      img.onload = () => {
-        const pad = 60;
-        const targetW = 1024 - pad * 2;
-        const targetH = 1024 - pad * 2;
-        const imgAspect = img.naturalWidth / img.naturalHeight;
-        let drawW = targetW;
-        let drawH = targetH;
-        if (imgAspect > 1) {
-          drawH = targetW / imgAspect;
-        } else {
-          drawW = targetH * imgAspect;
-        }
-        const drawX = (1024 - drawW) / 2;
-        const drawY = (1024 - drawH) / 2;
-        ctx.drawImage(img, drawX, drawY, drawW, drawH);
-        texture.needsUpdate = true;
-      };
-      // Fallback texture while loading
-      renderPeepalTheme(ctx);
-    }
+      texture.isLoading = false;
+      console.log('Botanical texture updated with user art');
+    };
+
+    img.onerror = () => {
+      console.error('Failed to load botanical image');
+      texture.isLoading = false;
+      ctx.fillStyle = '#85582f';
+      ctx.font = '24px serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Error loading specimen image', 512, 512);
+      texture.needsUpdate = true;
+    };
+
+    img.src = customImageData;
   } else if (theme === 'peepal_sacred') {
     renderPeepalTheme(ctx);
   } else if (theme === 'lotus_kaveri') {
@@ -109,7 +142,8 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
     renderBanyanTheme(ctx);
   } else if (theme === 'fern_synthesis') {
     renderFernTheme(ctx);
-  } else {
+  } else if (theme !== 'custom' && theme !== 'none') {
+    // Only render a fallback if it's not explicitly 'custom' or 'none'
     renderGulmoharTheme(ctx);
   }
 
