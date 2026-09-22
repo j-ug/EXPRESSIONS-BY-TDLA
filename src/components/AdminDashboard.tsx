@@ -3,7 +3,7 @@ import { BotanicalArtwork, User } from '../types';
 import { replaceStoredArtworks } from '../utils/artworksStorage';
 import { deleteAllArtworks, deleteArtwork, updateArtwork, getArtworks, saveArtwork } from '../lib/artworks';
 import { EditArtworkModal } from './EditArtworkModal';
-import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, X } from 'lucide-react';
+import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, ArrowUp, ArrowDown, X } from 'lucide-react';
 
 interface AdminDashboardProps {
   artworks: BotanicalArtwork[];
@@ -93,6 +93,23 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       onUpdateArtworks(replaceStoredArtworks(updated));
     } catch (error) {
       throw error;
+    }
+  };
+
+  const handleMoveOrder = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= artworks.length) return;
+    const newArtworks = [...artworks];
+    const [moved] = newArtworks.splice(index, 1);
+    newArtworks.splice(targetIndex, 0, moved);
+    const reindexed = newArtworks.map((art, idx) => ({ ...art, viewOrder: idx + 1 }));
+    onUpdateArtworks(replaceStoredArtworks(reindexed));
+    try {
+      for (const art of reindexed) {
+        await updateArtwork(art.id, art);
+      }
+    } catch {
+      // Local copy remains updated
     }
   };
 
@@ -190,17 +207,25 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
 
                     <div className="min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono text-[#826750]">#{idx + 1}</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="px-2 py-0.5 rounded-md bg-[#85582f]/10 text-[10px] font-mono font-semibold text-[#85582f]">
+                          Order #{art.viewOrder ?? idx + 1}
+                        </span>
                         <h4 className="font-serif font-medium text-base text-[#2d1f14] truncate">
                           {art.title}
                         </h4>
                         {art.tamilTitle && (
                           <span className="text-xs text-[#78593e] font-serif">({art.tamilTitle})</span>
                         )}
+                        <span className="px-1.5 py-0.5 rounded bg-[#f5ece0] text-[9px] font-mono text-[#6b4e36] border border-[#decbb7] uppercase">
+                          {art.wallSide === 'left' ? 'Left Wall' : art.wallSide === 'right' ? 'Right Wall' : 'Auto Wall'}
+                        </span>
+                        <span className="px-1.5 py-0.5 rounded bg-[#f5ece0] text-[9px] font-mono text-[#6b4e36] border border-[#decbb7]">
+                          Station {art.hallwayStation ?? idx + 1}
+                        </span>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6b5038] mt-0.5">
+                      <div className="flex flex-wrap items-center gap-2 text-[11px] text-[#6b5038] mt-1">
                         <span className="font-semibold text-[#85582f]">{art.price || 'Price on request'}</span>
                         <span>•</span>
                         <span>{art.medium}</span>
@@ -212,14 +237,37 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
                     </div>
                   </div>
 
-                  {/* Actions */}
+                  {/* Actions & Reordering */}
                   <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                    {/* Reorder Buttons */}
+                    <div className="flex items-center border border-[#dfd2c0] rounded-lg overflow-hidden bg-[#faf4ec]">
+                      <button
+                        type="button"
+                        disabled={idx === 0}
+                        onClick={() => handleMoveOrder(idx, 'up')}
+                        className="p-1.5 text-[#5e4530] hover:bg-[#ede0ce] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                        title="Move Up in Viewing Order"
+                      >
+                        <ArrowUp className="w-3.5 h-3.5" />
+                      </button>
+                      <div className="w-[1px] h-4 bg-[#dfd2c0]" />
+                      <button
+                        type="button"
+                        disabled={idx === artworks.length - 1}
+                        onClick={() => handleMoveOrder(idx, 'down')}
+                        className="p-1.5 text-[#5e4530] hover:bg-[#ede0ce] disabled:opacity-30 disabled:hover:bg-transparent transition-colors cursor-pointer"
+                        title="Move Down in Viewing Order"
+                      >
+                        <ArrowDown className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => setEditingArtwork(art)}
                       className="px-3 py-1.5 rounded-lg bg-[#f5ecdf] hover:bg-[#ede0ce] text-[#5e4530] text-xs font-medium border border-[#dfd2c0] flex items-center gap-1.5 transition-all cursor-pointer"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
-                      <span>Edit Details</span>
+                      <span>Edit</span>
                     </button>
 
                     <button

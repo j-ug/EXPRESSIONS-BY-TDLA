@@ -18,6 +18,9 @@ export interface BotanicalArtwork {
   textureTheme: string; // 'peepal_sacred', 'lotus_kaveri', 'palmyra_sun', 'vilvam_monsoon', 'jasmine_malli', 'custom', or extended botanical themes
   customImageData?: string; // Optional uploaded or custom data URL
   createdBy?: string;
+  wallSide?: 'left' | 'right' | 'auto'; // Hallway wall side ('left' or 'right' or 'auto')
+  viewOrder?: number; // Order index when scrolling through gallery (1, 2, 3...)
+  hallwayStation?: number; // Position station index along the corridor (1, 2, 3...)
 }
 
 export interface User {

@@ -32,6 +32,9 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
   const [year, setYear] = useState('2024');
   const [frameShape, setFrameShape] = useState<FrameShape>('rectangle');
   const [biasLightColor, setBiasLightColor] = useState('#608050');
+  const [wallSide, setWallSide] = useState<'left' | 'right' | 'auto'>('auto');
+  const [viewOrder, setViewOrder] = useState<number>(1);
+  const [hallwayStation, setHallwayStation] = useState<number>(1);
   const [customImageData, setCustomImageData] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState('');
   const [inspiration, setInspiration] = useState('');
@@ -47,12 +50,47 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
       setError('Please select a valid image file (PNG, JPG, WebP).');
       return;
     }
+
     const reader = new FileReader();
     reader.onload = (evt) => {
-      if (evt.target?.result) {
-        setCustomImageData(evt.target.result as string);
+      const rawData = evt.target?.result as string;
+      if (!rawData) return;
+
+      // Cleanly load and compress to max 1400px so storage and WebGL render without lag or quota issues
+      const img = new Image();
+      img.onload = () => {
+        const maxDim = 1400;
+        let w = img.naturalWidth || img.width;
+        let h = img.naturalHeight || img.height;
+        if (w > maxDim || h > maxDim) {
+          if (w > h) {
+            h = Math.round((h * maxDim) / w);
+            w = maxDim;
+          } else {
+            w = Math.round((w * maxDim) / h);
+            h = maxDim;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = w;
+        canvas.height = h;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.imageSmoothingEnabled = true;
+          ctx.imageSmoothingQuality = 'high';
+          ctx.drawImage(img, 0, 0, w, h);
+          const compressed = canvas.toDataURL('image/jpeg', 0.92);
+          setCustomImageData(compressed);
+        } else {
+          setCustomImageData(rawData);
+        }
         setError(null);
-      }
+      };
+      img.onerror = () => {
+        setCustomImageData(rawData);
+        setError(null);
+      };
+      img.src = rawData;
     };
     reader.readAsDataURL(file);
   };
@@ -93,6 +131,9 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
       textureTheme: customImageData ? 'custom' : 'peepal_sacred',
       customImageData,
       createdBy: 'Curator Admin',
+      wallSide,
+      viewOrder: Number(viewOrder) || 1,
+      hallwayStation: Number(hallwayStation) || 1,
     };
 
     const id = crypto.randomUUID();
@@ -246,6 +287,63 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
               <option value="arched">Cathedral Arched Vault Mount</option>
               <option value="leaf">Organic Leaf Silhouette</option>
             </select>
+          </div>
+
+          {/* Hallway Wall Side & Viewing Order Placement */}
+          <div className="p-3.5 rounded-2xl bg-[#f7f0e6] border border-[#decbb7] space-y-3">
+            <div className="flex items-center gap-2">
+              <Layers className="w-3.5 h-3.5 text-[#85582f]" />
+              <span className="text-[11px] font-mono uppercase tracking-wider text-[#634324] font-semibold">
+                Hallway Placement & Viewing Order
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                  Corridor Wall Side
+                </label>
+                <select
+                  value={wallSide}
+                  onChange={(e) => setWallSide(e.target.value as 'left' | 'right' | 'auto')}
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+                >
+                  <option value="auto">Auto (Alternating)</option>
+                  <option value="left">Left Wall</option>
+                  <option value="right">Right Wall</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                  Scroll Viewing Order
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={viewOrder}
+                  onChange={(e) => setViewOrder(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+                />
+                <span className="text-[9px] text-[#8c6d53]">Sequence when scrolled</span>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-mono uppercase tracking-wider text-[#7d6148] mb-1">
+                  Hallway Station #
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  max={50}
+                  value={hallwayStation}
+                  onChange={(e) => setHallwayStation(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-full px-2.5 py-1.5 rounded-xl bg-[#fffefc] border border-[#d6c4af] text-xs text-[#2d1f14] focus:outline-none focus:border-[#85582f]"
+                />
+                <span className="text-[9px] text-[#8c6d53]">Position along corridor</span>
+              </div>
+            </div>
           </div>
 
           {/* Bias Lighting Color */}

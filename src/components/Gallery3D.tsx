@@ -74,12 +74,12 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     artwork: BotanicalArtwork;
     group: THREE.Group;
     canvasMesh: THREE.Mesh;
-    canvasMaterial: THREE.MeshStandardMaterial; // Updated to Standard
-    texture: THREE.Texture; // Store texture reference
-    haloMesh: THREE.Mesh;
-    biasPointLight: THREE.PointLight;
-    spotLight: THREE.SpotLight; // Added spotLight
+    canvasMaterial: THREE.MeshStandardMaterial;
+    texture: THREE.Texture;
+    spotLight?: THREE.SpotLight;
     xStation: number;
+    zStation: number;
+    isOnBackWall: boolean;
   }
   const artworkObjectsRef = useRef<ArtworkObject[]>([]);
   const loadingPlaquesRef = useRef<{ [key: string]: HTMLDivElement | null }>({});
@@ -205,7 +205,11 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     wallsGroupRef.current = wallsGroup;
 
     const wallHeight = 8.5;
-    const galleryLength = Math.max(68, artworks.length * 12 + 15); // Length along which artworks are placed
+    const maxStation = artworks.reduce((acc, art, idx) => {
+      const st = art.hallwayStation ?? (idx + 1);
+      return Math.max(acc, st);
+    }, artworks.length);
+    const galleryLength = Math.max(75, maxStation * 15 + 25); // Length along which artworks are placed
     const initialWidth = 14;
 
     // Floor
@@ -283,9 +287,6 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     portalLintel.position.set(0, wallHeight - 0.3, 12);
     scene.add(portalLintel);
 
-    // 6. Build Artwork Stations
-    const artworkObjects: ArtworkObject[] = [];
-
     // --- Build Trevor (GTA Style) 3D Primitive Character ---
     const trevorGroup = new THREE.Group();
     
@@ -338,20 +339,39 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     scene.add(trevorGroup);
     // --- End Trevor Build ---
 
-    // Artwork station X coordinates along the gallery wall
-    const stationPositions = artworks.map((_, i) => -1 + i * 15); // Increased spacing for double-sided
+    // 6. Build Artwork Stations with admin-controlled ordering & wall placements
+    const artworkObjects: ArtworkObject[] = [];
 
-    artworks.forEach((art, index) => {
-      const xPos = stationPositions[index];
-      const artGroup = new THREE.Group();
-      
-      // Alternate walls: 0, 2, 4 on back wall (z < 0), 1, 3 on front wall (z > 0)
-      const isOnBackWall = index % 2 === 0;
+    // Sort artworks by viewOrder so that the viewing sequence strictly follows admin configuration
+    const sortedArtworks = [...artworks].sort((a, b) => {
+      const orderA = a.viewOrder ?? 999;
+      const orderB = b.viewOrder ?? 999;
+      if (orderA !== orderB) return orderA - orderB;
+      return 0;
+    });
+
+    sortedArtworks.forEach((art, index) => {
+      // Wall placement: 'left' = Left Wall (z < 0), 'right' = Right Wall (z > 0), default alternates
+      let isOnBackWall: boolean;
+      if (art.wallSide === 'left') {
+        isOnBackWall = true;
+      } else if (art.wallSide === 'right') {
+        isOnBackWall = false;
+      } else {
+        isOnBackWall = index % 2 === 0;
+      }
+
+      // Station X along corridor: station 1 = -1, station 2 = 13, station 3 = 27...
+      const stationNumber = (art.hallwayStation !== undefined && art.hallwayStation > 0)
+        ? art.hallwayStation
+        : index + 1;
+      const xPos = -1 + (stationNumber - 1) * 14;
       const zPos = isOnBackWall ? -initialWidth / 2 + 0.15 : initialWidth / 2 - 0.15;
-      
+
+      const artGroup = new THREE.Group();
       artGroup.position.set(xPos, 3.2, zPos);
       if (!isOnBackWall) {
-        artGroup.rotation.y = Math.PI; // Face the other way
+        artGroup.rotation.y = Math.PI; // Face inward into hallway
       }
       scene.add(artGroup);
 
@@ -373,29 +393,29 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       if (art.frameShape === 'square') {
         frameW = 2.1;
         frameH = 2.1;
-        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
+        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       } else if (art.frameShape === 'leaf' || art.frameShape === 'arched') {
         frameW = 1.95;
         frameH = 2.7;
-        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
+        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       } else if (art.frameShape === 'circular') {
         frameW = 2.2;
         frameH = 2.2;
-        frameGeometry = new THREE.CylinderGeometry(frameW / 2, frameW / 2, 0.08, 48);
+        frameGeometry = new THREE.CylinderGeometry(frameW / 2, frameW / 2, 0.06, 48);
         frameGeometry.rotateX(Math.PI / 2);
       } else {
         frameW = 2.0;
         frameH = 2.7;
-        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.08);
+        frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       }
 
-      // Canvas Face Mesh with pristine botanical clarity & subtle self-illumination
+      // Canvas Face Mesh with 100% true color fidelity, zero foggy emissive wash
       const canvasMat = new THREE.MeshStandardMaterial({
         map: artTexture,
-        roughness: 0.9,
+        roughness: 0.25,
         metalness: 0.0,
-        emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.25, // Increased for better clarity in all lighting
+        emissive: new THREE.Color(0x000000), // NO foggy white emission
+        emissiveIntensity: 0.0,
         transparent: false,
         opacity: 1.0,
       });
@@ -404,105 +424,54 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       canvasMesh.castShadow = true;
       canvasMesh.receiveShadow = true;
       canvasMesh.userData = { artworkIndex: index, artwork: art };
+      canvasMesh.position.z = 0.02;
       artGroup.add(canvasMesh);
 
-      // Dedicated warm front illumination fill light so botanical details pop clearly in motion
-      const frontFillLight = new THREE.PointLight('#ffffff', 2.0, 8.0, 1.5); // Brighter, pure white fill
-      frontFillLight.position.set(0, 0, 3.0); // Slightly further back for even lighting
-      artGroup.add(frontFillLight);
-
-      // 1. Handcrafted Elegant Premium Satin Black Frame
-      const frameMat = new THREE.MeshPhysicalMaterial({
-        color: '#111111', // Matte black
+      // Minimal, sleek museum frame molding
+      const frameMat = new THREE.MeshStandardMaterial({
+        color: '#1a1816', // Sleek gallery dark walnut / charcoal
+        roughness: 0.55,
         metalness: 0.1,
-        roughness: 0.45,  // Satin texture
-        clearcoat: 0.1,   // Subtle protective layer
-        clearcoatRoughness: 0.3,
-        side: THREE.DoubleSide
-      });
-
-      // 2. Sophisticated Soft Black Fillet Liner
-      const filletMat = new THREE.MeshStandardMaterial({
-        color: '#222222', // Sophisticated charcoal black
-        roughness: 0.6,
       });
 
       if (art.frameShape === 'circular') {
-        // Outer Y2K frame torus molding
-        const outerTorus = new THREE.TorusGeometry(frameW / 2 + 0.1, 0.08, 24, 96);
+        const outerTorus = new THREE.TorusGeometry(frameW / 2 + 0.025, 0.025, 20, 72);
         const outerMesh = new THREE.Mesh(outerTorus, frameMat);
-        outerMesh.position.z = 0.01;
+        outerMesh.position.z = 0.015;
         artGroup.add(outerMesh);
-
-        // Inner neon fillet liner ring
-        const innerTorus = new THREE.TorusGeometry(frameW / 2 + 0.02, 0.04, 24, 96);
-        const innerMesh = new THREE.Mesh(innerTorus, filletMat);
-        innerMesh.position.z = 0.03;
-        artGroup.add(innerMesh);
       } else {
-        // Outer Y2K frame box
-        const outerFrame = new THREE.Mesh(
-          new THREE.BoxGeometry(frameW + 0.28, frameH + 0.28, 0.1),
-          frameMat
-        );
-        outerFrame.position.z = -0.02;
-        artGroup.add(outerFrame);
+        const railThick = 0.035; // Minimal 3.5cm sleek border
+        const railDepth = 0.03;  // Minimal 3cm depth
 
-        // Inner neon fillet liner
-        const innerFillet = new THREE.Mesh(
-          new THREE.BoxGeometry(frameW + 0.08, frameH + 0.08, 0.11),
-          filletMat
-        );
-        innerFillet.position.z = 0.01;
-        artGroup.add(innerFillet);
+        // Top Rail
+        const topRail = new THREE.Mesh(new THREE.BoxGeometry(frameW + railThick * 2, railThick, railDepth), frameMat);
+        topRail.position.set(0, frameH / 2 + railThick / 2, 0.01);
+        artGroup.add(topRail);
+
+        // Bottom Rail
+        const bottomRail = new THREE.Mesh(new THREE.BoxGeometry(frameW + railThick * 2, railThick, railDepth), frameMat);
+        bottomRail.position.set(0, -frameH / 2 - railThick / 2, 0.01);
+        artGroup.add(bottomRail);
+
+        // Left Rail
+        const leftRail = new THREE.Mesh(new THREE.BoxGeometry(railThick, frameH, railDepth), frameMat);
+        leftRail.position.set(-frameW / 2 - railThick / 2, 0, 0.01);
+        artGroup.add(leftRail);
+
+        // Right Rail
+        const rightRail = new THREE.Mesh(new THREE.BoxGeometry(railThick, frameH, railDepth), frameMat);
+        rightRail.position.set(frameW / 2 + railThick / 2, 0, 0.01);
+        artGroup.add(rightRail);
       }
 
-      // Soft Wall Cast Shadow Behind Frame
-      const shadowMat = new THREE.MeshBasicMaterial({
-        color: '#000000',
-        transparent: true,
-        opacity: 0.4, // Slightly deeper shadow
-      });
-      const shadowPlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(frameW + 0.6, frameH + 0.6),
-        shadowMat
-      );
-      shadowPlane.position.set(0.05, -0.08, -0.08);
-      artGroup.add(shadowPlane);
-
-      // Dedicated Bias Lighting (Glow Halo mesh + PointLight behind canvas)
-      // RECTANGULAR STRIP LIGHTING CONCEPT
-      const glowGeo = new THREE.PlaneGeometry(frameW + 0.6, frameH + 0.6);
-      const glowMat = new THREE.MeshBasicMaterial({
-        color: new THREE.Color(art.biasLightColor),
-        transparent: true,
-        opacity: 0.2, // Subtle glow
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-      });
-
-      const glowPlane = new THREE.Mesh(glowGeo, glowMat);
-      glowPlane.position.set(0, 0, -0.1); // Slightly behind frame
-      artGroup.add(glowPlane);
-
-      // Bias light point light cast onto the wall behind
-      const biasLight = new THREE.PointLight(
-        new THREE.Color(art.biasLightColor),
-        art.biasLightIntensity * 1.2,
-        4.0, // Tighter radius
-        2.0
-      );
-      biasLight.position.set(0, 0, -0.2); // Moved BEHIND the canvas so it doesn't block the image
-      artGroup.add(biasLight);
-
-      // Small Museum Spotlight directed at artwork position (independent target)
+      // Minimal lighting: Clean focused museum gallery spotlight directly onto canvas
       const spotTarget = new THREE.Object3D();
       spotTarget.position.set(xPos, 3.2, zPos);
       scene.add(spotTarget);
 
-      const spotLight = new THREE.SpotLight('#ffffff', 3.5, 15, Math.PI / 5, 0.5, 1.0); // Brighter, wider, purer white
-      const spotZOffset = isOnBackWall ? 4.0 : -4.0; // Slightly further back for better angle
-      spotLight.position.set(xPos, wallHeight - 1.0, zPos + spotZOffset);
+      const spotLight = new THREE.SpotLight('#ffffff', 1.8, 14, Math.PI / 6, 0.35, 1.2);
+      const spotZOffset = isOnBackWall ? 3.0 : -3.0;
+      spotLight.position.set(xPos, wallHeight - 0.8, zPos + spotZOffset);
       spotLight.target = spotTarget;
       spotLight.castShadow = false;
       scene.add(spotLight);
@@ -513,10 +482,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         canvasMesh,
         canvasMaterial: canvasMat,
         texture: artTexture,
-        haloMesh: glowPlane,
-        biasPointLight: biasLight,
         spotLight: spotLight,
         xStation: xPos,
+        zStation: zPos,
+        isOnBackWall: isOnBackWall,
       });
     });
 
@@ -651,9 +620,9 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
         if (intersects.length > 0) {
           const hit = intersects[0].object;
-          const artIndex = hit.userData.artworkIndex;
-          if (artIndex !== undefined && artworks[artIndex]) {
-            setHoveredArtwork(artworks[artIndex]);
+          const hitArt = hit.userData.artwork;
+          if (hitArt) {
+            setHoveredArtwork(hitArt);
             if (canvasContainerRef.current) canvasContainerRef.current.style.cursor = 'pointer';
           }
         } else {
@@ -734,42 +703,50 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
             smoothFraction = 0.04 + 0.92 * (t * t * (3 - 2 * t));
           }
 
+          // Camera moves squarely in front of each canvas:
+          // Left Wall canvas is at z = -currentWidth / 2 + 0.15. Viewing position is at z = -currentWidth / 2 + 3.8
+          // Right Wall canvas is at z = currentWidth / 2 - 0.15. Viewing position is at z = currentWidth / 2 - 3.8
+          const viewDist = 3.8;
+          const camZA = currentArt.isOnBackWall ? -currentWidth / 2 + viewDist : currentWidth / 2 - viewDist;
+          const lookZA = currentArt.isOnBackWall ? -currentWidth / 2 + 0.15 : currentWidth / 2 - 0.15;
+
+          const camZB = nextArt.isOnBackWall ? -currentWidth / 2 + viewDist : currentWidth / 2 - viewDist;
+          const lookZB = nextArt.isOnBackWall ? -currentWidth / 2 + 0.15 : currentWidth / 2 - 0.15;
+
           targetCamX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
           targetCamY = 3.2;
-          
+          targetCamZ = THREE.MathUtils.lerp(camZA, camZB, smoothFraction);
+
+          targetLookX = THREE.MathUtils.lerp(currentArt.xStation, nextArt.xStation, smoothFraction);
+          targetLookY = 3.2;
+          targetLookZ = THREE.MathUtils.lerp(lookZA, lookZB, smoothFraction);
+
           // Trevor position update & animation
           const walkSpeed = 5.0;
           const walkCycle = Math.sin(time * walkSpeed);
-          
-          trevorGroup.position.x = targetCamX + 2.5;
-          trevorGroup.position.z = Math.sin(time * 0.5) * 1.5;
+
+          trevorGroup.position.x = targetCamX + 2.4;
+          trevorGroup.position.z = THREE.MathUtils.lerp(0, Math.sin(time * 0.5) * 1.2, 0.4);
           trevorGroup.position.y = Math.abs(Math.cos(time * walkSpeed * 2)) * 0.08; // Vertical bounce
-          
+
           // Leg swing
           legLGroup.rotation.x = walkCycle * 0.45;
           legRGroup.rotation.x = -walkCycle * 0.45;
           // Arm swing (opposite to legs)
           armLGroup.rotation.x = -walkCycle * 0.35;
           armRGroup.rotation.x = walkCycle * 0.35;
-          
-          // Trevor looks ahead or towards the art
-          trevorGroup.rotation.y = Math.PI / 2 + Math.sin(time * 0.3) * 0.2;
 
-          const isOnBackWall = currIndex % 2 === 0;
-          // Look at the correct wall based on active artwork
-          targetCamZ = isOnBackWall ? -currentWidth / 2 + 5.5 : currentWidth / 2 - 5.5;
-
-          // Directly look squarely at the artwork center
-          targetLookX = targetCamX;
-          targetLookY = 3.08;
-          targetLookZ = isOnBackWall ? -currentWidth / 2 + 0.15 : currentWidth / 2 - 0.15;
+          // Trevor turns slightly toward the active artwork
+          trevorGroup.rotation.y = (targetLookZ < targetCamZ ? -Math.PI / 4 : Math.PI / 4);
         }
 
         // Trigger active artwork index callback
         const activeIdx = numArtworks > 0 ? Math.max(0, Math.min(Math.round(rawArtworkPos), numArtworks - 1)) : 0;
         if (activeIdx !== lastAnnouncedIndex) {
           lastAnnouncedIndex = activeIdx;
-          callbacksRef.current.onArtworkChange(activeIdx);
+          const activeArt = artworkObjects[activeIdx]?.artwork;
+          const origIndex = activeArt ? artworks.findIndex(a => a.id === activeArt.id) : activeIdx;
+          callbacksRef.current.onArtworkChange(origIndex >= 0 ? origIndex : activeIdx);
         }
       } else {
         // Exiting to the sunlit veranda / About the Artist space
@@ -788,10 +765,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       const parallaxX = (mouseCurrentRef.current.x || 0) * 0.45;
       const parallaxY = (mouseCurrentRef.current.y || 0) * 0.25;
 
-      // Responsive interpolation factor (0.02) eliminates sluggish trailing motion blur and slows down camera even more
-      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.02;
-      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.02;
-      camera.position.z += (targetCamZ - camera.position.z) * 0.02;
+      // Responsive interpolation factor (0.055) provides smooth responsive camera movement
+      camera.position.x += (targetCamX + parallaxX - camera.position.x) * 0.055;
+      camera.position.y += (targetCamY + parallaxY - camera.position.y) * 0.055;
+      camera.position.z += (targetCamZ - camera.position.z) * 0.055;
 
       camera.lookAt(targetLookX + parallaxX * 0.4, targetLookY + parallaxY * 0.4, targetLookZ);
 
@@ -814,25 +791,14 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           }
         }
 
-        // Position on wall adjusts if wall moves
-        item.group.position.z = -currentWidth / 2 + 0.14;
+        // Keep position on appropriate wall side
+        item.group.position.z = item.isOnBackWall ? -currentWidth / 2 + 0.15 : currentWidth / 2 - 0.15;
 
-        const isCurrentlyActive = idx === activeArtworkIndex;
+        const isCurrentlyActive = item.artwork.id === artworks[activeArtworkIndex]?.id;
 
         // Handle per-artwork loading spinner
         const loadingPlaque = loadingPlaquesRef.current[item.artwork.id];
         const isTexLoading = (item.texture as any).isLoading === true;
-
-        if (isTexLoading) {
-          // Pulse the emissive intensity so the canvas feels "alive" while fetching
-          const loadingPulse = 0.25 + Math.sin(time * 4.0) * 0.12;
-          item.canvasMaterial.emissiveIntensity = loadingPulse;
-          item.canvasMaterial.roughness = 0.98; // Very rough (diffuse) while loading
-        } else {
-          // Smooth transition to final specimen clarity
-          item.canvasMaterial.emissiveIntensity = THREE.MathUtils.lerp(item.canvasMaterial.emissiveIntensity, 0.25, 0.08);
-          item.canvasMaterial.roughness = THREE.MathUtils.lerp(item.canvasMaterial.roughness, 0.9, 0.08);
-        }
 
         if (loadingPlaque) {
           if (isTexLoading) {
@@ -858,23 +824,17 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
           item.canvasMaterial.needsUpdate = true;
         }
 
-        // Keep all canvases completely solid, fully opaque, and crisp at all times!
+        // Keep all canvases completely sharp, solid, fully opaque, with zero foggy emissive wash
+        item.canvasMaterial.emissiveIntensity = 0.0;
+        item.canvasMaterial.roughness = 0.25;
         item.canvasMaterial.opacity = 1.0;
         item.canvasMaterial.transparent = false;
 
-        // Subtle bias light breathing pulse
-        const pulse = 1.0 + Math.sin(time * 2.0 + idx) * 0.08;
-        const hoverBoost = hoveredArtwork?.id === item.artwork.id ? 1.4 : 1.0;
-        item.biasPointLight.intensity = item.artwork.biasLightIntensity * pulse * hoverBoost * (isCurrentlyActive ? 1.2 : 0.85);
-
-        // Dynamic Spotlight: Adjust intensity & temperature (color) based on scroll
-        // Warmer for early scroll (approaching), cooler for exit
-        const spotlightIntensity = isCurrentlyActive ? 2.2 : 0.8;
-        item.spotLight.intensity = THREE.MathUtils.lerp(item.spotLight.intensity, spotlightIntensity, 0.1);
-        
-        // Color transition: warm -> white -> cool
-        const scrollArtT = Math.max(0, Math.min(1, (p - 0.14) / 0.74));
-        item.spotLight.color.set(new THREE.Color().setHSL(0.08 + scrollArtT * 0.05, 0.6, 0.9));
+        // Dynamic Spotlight: Clean focused museum lighting on active artwork
+        if (item.spotLight) {
+          const targetIntensity = isCurrentlyActive ? 2.2 : 1.0;
+          item.spotLight.intensity = THREE.MathUtils.lerp(item.spotLight.intensity, targetIntensity, 0.1);
+        }
 
         // Soft tilt on hovered canvas
         if (hoveredArtwork?.id === item.artwork.id) {
