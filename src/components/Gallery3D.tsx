@@ -392,10 +392,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       // Canvas Face Mesh with pristine botanical clarity & subtle self-illumination
       const canvasMat = new THREE.MeshStandardMaterial({
         map: artTexture,
-        roughness: 0.8,
-        metalness: 0.1,
+        roughness: 0.9,
+        metalness: 0.0,
         emissive: new THREE.Color('#ffffff'),
-        emissiveIntensity: 0.05, // Subtle self-glow so it is never pitch black
+        emissiveIntensity: 0.25, // Increased for better clarity in all lighting
         transparent: false,
         opacity: 1.0,
       });
@@ -407,8 +407,8 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       artGroup.add(canvasMesh);
 
       // Dedicated warm front illumination fill light so botanical details pop clearly in motion
-      const frontFillLight = new THREE.PointLight('#fffbf0', 1.25, 7.5, 1.2);
-      frontFillLight.position.set(0, 0, 2.2);
+      const frontFillLight = new THREE.PointLight('#ffffff', 2.0, 8.0, 1.5); // Brighter, pure white fill
+      frontFillLight.position.set(0, 0, 3.0); // Slightly further back for even lighting
       artGroup.add(frontFillLight);
 
       // 1. Handcrafted Elegant Premium Satin Black Frame
@@ -500,11 +500,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       spotTarget.position.set(xPos, 3.2, zPos);
       scene.add(spotTarget);
 
-      const spotLight = new THREE.SpotLight('#fff4e0', 1.8, 12, Math.PI / 6, 0.45, 1.2);
-      const spotZOffset = isOnBackWall ? 3.2 : -3.2;
-      spotLight.position.set(xPos, wallHeight - 0.4, zPos + spotZOffset);
+      const spotLight = new THREE.SpotLight('#ffffff', 3.5, 15, Math.PI / 5, 0.5, 1.0); // Brighter, wider, purer white
+      const spotZOffset = isOnBackWall ? 4.0 : -4.0; // Slightly further back for better angle
+      spotLight.position.set(xPos, wallHeight - 1.0, zPos + spotZOffset);
       spotLight.target = spotTarget;
-      // Do not cast shadows on per-artwork spotlights to keep texture units well under WebGL limit (16)
       spotLight.castShadow = false;
       scene.add(spotLight);
 
@@ -823,6 +822,18 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         // Handle per-artwork loading spinner
         const loadingPlaque = loadingPlaquesRef.current[item.artwork.id];
         const isTexLoading = (item.texture as any).isLoading === true;
+
+        if (isTexLoading) {
+          // Pulse the emissive intensity so the canvas feels "alive" while fetching
+          const loadingPulse = 0.25 + Math.sin(time * 4.0) * 0.12;
+          item.canvasMaterial.emissiveIntensity = loadingPulse;
+          item.canvasMaterial.roughness = 0.98; // Very rough (diffuse) while loading
+        } else {
+          // Smooth transition to final specimen clarity
+          item.canvasMaterial.emissiveIntensity = THREE.MathUtils.lerp(item.canvasMaterial.emissiveIntensity, 0.25, 0.08);
+          item.canvasMaterial.roughness = THREE.MathUtils.lerp(item.canvasMaterial.roughness, 0.9, 0.08);
+        }
+
         if (loadingPlaque) {
           if (isTexLoading) {
             const vector = new THREE.Vector3(item.group.position.x, item.group.position.y, item.group.position.z);

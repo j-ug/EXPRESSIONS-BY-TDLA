@@ -17,11 +17,17 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
   canvas.height = 1024;
   const ctx = canvas.getContext('2d')!;
 
-  // 1. Initial Fill - Ensure we have a light background IMMEDIATELY
+  // 2. Initial Fill - Ensure we have a light background IMMEDIATELY
   ctx.fillStyle = '#f7f2eb';
   ctx.fillRect(0, 0, 1024, 1024);
 
-  // 2. Base handmade paper background
+  // Draw a subtle "Loading" watermark in the center as a first-pass placeholder
+  ctx.font = '20px "Cormorant Garamond", serif';
+  ctx.fillStyle = 'rgba(60, 50, 40, 0.1)';
+  ctx.textAlign = 'center';
+  ctx.fillText('Preparing Specimen...', 512, 512);
+
+  // 3. Base handmade paper background
   const grad = ctx.createRadialGradient(512, 512, 50, 512, 512, 700);
   grad.addColorStop(0, '#fdfaf2');
   grad.addColorStop(0.7, '#f2ebe0');
@@ -57,6 +63,26 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
 
   // If user provided a custom image, draw it onto the deckled canvas
   if (customImageData && customImageData.length > 10) {
+    // RENDER THEME AS PLACEHOLDER while custom image loads
+    // This provides an instant "blur-up" artistic context
+    if (theme === 'peepal_sacred') {
+      renderPeepalTheme(ctx);
+    } else if (theme === 'lotus_kaveri') {
+      renderLotusTheme(ctx);
+    } else if (theme === 'palmyra_sun') {
+      renderPalmyraTheme(ctx);
+    } else if (theme === 'neem_heritage') {
+      renderNeemTheme(ctx);
+    } else if (theme === 'jasmine_malli') {
+      renderJasmineTheme(ctx);
+    } else {
+      renderPeepalTheme(ctx); // Default artistic placeholder
+    }
+
+    // Add "Blur-up" overlay (frosted glass effect)
+    ctx.fillStyle = 'rgba(247, 242, 235, 0.85)';
+    ctx.fillRect(0, 0, 1024, 1024);
+
     const img = new Image();
     
     // Only set crossOrigin if it is NOT a data URL
@@ -67,6 +93,9 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
     texture.isLoading = true;
 
     img.onload = () => {
+      // Create a fading-in effect by drawing with low global alpha first?
+      // For now, clean draw but we'll animate the intensity in 3D
+      
       // Clear with background color again before drawing art
       ctx.fillStyle = '#f7f2eb';
       ctx.fillRect(0, 0, 1024, 1024);
@@ -102,7 +131,7 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
       
-      // Re-draw signature/tags over the art if needed, or just let them stay at the bottom
+      // Signature labels
       ctx.font = 'italic 16px "Cormorant Garamond", Georgia, serif';
       ctx.fillStyle = 'rgba(60, 50, 40, 0.4)';
       ctx.textAlign = 'left';
@@ -111,6 +140,11 @@ export function createArtworkTexture(theme: string, customImageData?: string): T
       ctx.fillText('Dr. G. Ophylia Vinodhini', 964, 970);
 
       texture.needsUpdate = true;
+      // Extra kick for some browser/three.js combinations
+      setTimeout(() => {
+        texture.needsUpdate = true;
+      }, 100);
+      
       texture.isLoading = false;
       console.log('Botanical texture updated with user art');
     };
