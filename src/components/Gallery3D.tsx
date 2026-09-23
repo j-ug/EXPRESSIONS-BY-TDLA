@@ -205,30 +205,33 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     wallsGroupRef.current = wallsGroup;
 
     const wallHeight = 8.5;
-    const maxStation = artworks.reduce((acc, art, idx) => {
-      const st = art.hallwayStation ?? (idx + 1);
-      return Math.max(acc, st);
-    }, artworks.length);
-    const galleryLength = Math.max(75, maxStation * 15 + 25); // Length along which artworks are placed
+    const numArtworks = artworks.length;
+    // Calculate last artwork position to determine total gallery length
+    const lastX = -1 + (numArtworks - 1) * 14;
+    const galleryLength = Math.max(100, lastX + 60); 
     const initialWidth = 14;
 
+    // Fixed center X to encompass all artworks and entry/exit
+    const wallCenterX = lastX / 2 + 5; 
+    const wallExtra = galleryLength / 2 + 20;
+
     // Floor
-    const floorGeo = new THREE.PlaneGeometry(galleryLength + 30, 40);
+    const floorGeo = new THREE.PlaneGeometry(galleryLength + 100, 40);
     const floorMesh = new THREE.Mesh(floorGeo, floorMaterial);
     floorMesh.rotation.x = -Math.PI / 2;
-    floorMesh.position.set(16, 0, 0);
+    floorMesh.position.set(wallCenterX, 0, 0);
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
     // Ceiling with architectural skylight louvers
-    const ceilingGeo = new THREE.PlaneGeometry(galleryLength + 30, 40);
+    const ceilingGeo = new THREE.PlaneGeometry(galleryLength + 100, 40);
     const ceilingMesh = new THREE.Mesh(ceilingGeo, ceilingMaterial);
     ceilingMesh.rotation.x = Math.PI / 2;
-    ceilingMesh.position.set(16, wallHeight, 0);
+    ceilingMesh.position.set(wallCenterX, wallHeight, 0);
     scene.add(ceilingMesh);
 
     // Skylight glass aperture
-    const skylightGeo = new THREE.PlaneGeometry(galleryLength, 3);
+    const skylightGeo = new THREE.PlaneGeometry(galleryLength + 60, 3);
     const skylightMat = new THREE.MeshBasicMaterial({
       color: '#fffae8',
       transparent: true,
@@ -237,40 +240,40 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
     });
     const skylightMesh = new THREE.Mesh(skylightGeo, skylightMat);
     skylightMesh.rotation.x = Math.PI / 2;
-    skylightMesh.position.set(16, wallHeight - 0.05, 0);
+    skylightMesh.position.set(wallCenterX, wallHeight - 0.05, 0);
     scene.add(skylightMesh);
 
     // Dynamic Back Wall (where artworks hang)
-    const backWallGeo = new THREE.PlaneGeometry(galleryLength + 30, wallHeight);
+    const backWallGeo = new THREE.PlaneGeometry(galleryLength + 100, wallHeight);
     const backWall = new THREE.Mesh(backWallGeo, wallMaterial);
-    backWall.position.set(16, wallHeight / 2, -initialWidth / 2);
+    backWall.position.set(wallCenterX, wallHeight / 2, -initialWidth / 2);
     backWall.receiveShadow = true;
     wallsGroup.add(backWall);
     backWallRef.current = backWall;
 
     // Dynamic Front Wall (opposite the artworks)
-    const frontWallGeo = new THREE.PlaneGeometry(galleryLength + 30, wallHeight);
+    const frontWallGeo = new THREE.PlaneGeometry(galleryLength + 100, wallHeight);
     const frontWall = new THREE.Mesh(frontWallGeo, wallMaterial);
     frontWall.rotation.y = Math.PI;
-    frontWall.position.set(16, wallHeight / 2, initialWidth / 2);
+    frontWall.position.set(wallCenterX, wallHeight / 2, initialWidth / 2);
     frontWall.receiveShadow = true;
     wallsGroup.add(frontWall);
     frontWallRef.current = frontWall;
 
     // Dynamic Left Wall (with entrance doorway)
-    const leftWallGeo = new THREE.PlaneGeometry(initialWidth, wallHeight);
+    const leftWallGeo = new THREE.PlaneGeometry(initialWidth + 10, wallHeight);
     const leftWall = new THREE.Mesh(leftWallGeo, wallMaterial);
     leftWall.rotation.y = Math.PI / 2;
-    leftWall.position.set(-8, wallHeight / 2, 0);
+    leftWall.position.set(-12, wallHeight / 2, 0);
     leftWall.receiveShadow = true;
     wallsGroup.add(leftWall);
     leftWallRef.current = leftWall;
 
     // Dynamic Right Wall (with exit archway leading to sunny Tamil pavilion)
-    const rightWallGeo = new THREE.PlaneGeometry(initialWidth, wallHeight);
+    const rightWallGeo = new THREE.PlaneGeometry(initialWidth + 10, wallHeight);
     const rightWall = new THREE.Mesh(rightWallGeo, wallMaterial);
     rightWall.rotation.y = -Math.PI / 2;
-    rightWall.position.set(galleryLength + 8, wallHeight / 2, 0);
+    rightWall.position.set(lastX + 40, wallHeight / 2, 0);
     rightWall.receiveShadow = true;
     wallsGroup.add(rightWall);
     rightWallRef.current = rightWall;
@@ -341,6 +344,17 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
     // 6. Build Artwork Stations with admin-controlled ordering & wall placements
     const artworkObjects: ArtworkObject[] = [];
+    
+    console.log('--- 3D GALLERY INITIALIZATION ---');
+    console.log('TOTAL ARTWORKS IN PROP:', artworks.length);
+    console.table(
+      artworks.map((a, i) => ({
+        index: i,
+        id: a.id,
+        title: a.title,
+        theme: a.textureTheme
+      }))
+    );
 
     // Sort artworks by viewOrder so that the viewing sequence strictly follows admin configuration
     const sortedArtworks = [...artworks].sort((a, b) => {
@@ -350,6 +364,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       return 0;
     });
 
+    let wallToggle = true; // Use a boolean toggle instead of modulo-2 logic
     sortedArtworks.forEach((art, index) => {
       // Wall placement: 'left' = Left Wall (z < 0), 'right' = Right Wall (z > 0), default alternates
       let isOnBackWall: boolean;
@@ -358,13 +373,15 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       } else if (art.wallSide === 'right') {
         isOnBackWall = false;
       } else {
-        isOnBackWall = index % 2 === 0;
+        isOnBackWall = wallToggle;
+        wallToggle = !wallToggle;
       }
 
-      // Station X along corridor: station 1 = -1, station 2 = 13, station 3 = 27...
-      const stationNumber = (art.hallwayStation !== undefined && art.hallwayStation > 0)
-        ? art.hallwayStation
-        : index + 1;
+      console.log(`MAPPING FRAME ${index} -> ID: ${art.id} | TITLE: ${art.title} | WALL: ${isOnBackWall ? 'BACK' : 'FRONT'}`);
+
+      // REQUIREMENT: Force sequential X positions based on viewOrder sequence to match Admin Dashboard.
+      // We ignore manual hallwayStation if it would cause overlaps or non-monotonic paths.
+      const stationNumber = index + 1;
       const xPos = -1 + (stationNumber - 1) * 14;
       const zPos = isOnBackWall ? -initialWidth / 2 + 0.15 : initialWidth / 2 - 0.15;
 
@@ -376,7 +393,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       scene.add(artGroup);
 
       // Artwork Canvas Texture with 16x anisotropic filtering for razor-sharp botanical veins
-      const artTexture = createArtworkTexture(art.textureTheme, art.customImageData);
+      const artTexture = createArtworkTexture(art.textureTheme, art.customImageData, art.id);
       if (renderer) {
         artTexture.anisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 16);
       }
@@ -385,27 +402,42 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
       artTexture.magFilter = THREE.LinearFilter;
       artTexture.needsUpdate = true;
 
-      // Frame Dimensions based on artwork frameShape (minimized so entire frame is properly visible)
+      // Frame Dimensions with real-world size difference (e.g. "60 × 80 cm")
       let frameW = 2.0;
       let frameH = 2.7;
+
+      const dimMatches = art.dimensions.match(/(\d+)\s*[×x*]\s*(\d+)/i);
+      if (dimMatches) {
+        const dW = parseInt(dimMatches[1]);
+        const dH = parseInt(dimMatches[2]);
+        // Normalize to a reasonable museum unit scale (100cm = 3.2 units)
+        frameW = (dW / 100) * 3.2;
+        frameH = (dH / 100) * 3.2;
+      } else if (art.frameShape === 'square') {
+        frameW = 2.1;
+        frameH = 2.1;
+      }
+
       let frameGeometry: THREE.BufferGeometry;
 
       if (art.frameShape === 'square') {
-        frameW = 2.1;
-        frameH = 2.1;
+        // If square shape requested but dims not square, we use average
+        if (!dimMatches) {
+          frameW = 2.1;
+          frameH = 2.1;
+        } else {
+          const avg = (frameW + frameH) / 2;
+          frameW = avg;
+          frameH = avg;
+        }
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       } else if (art.frameShape === 'leaf' || art.frameShape === 'arched') {
-        frameW = 1.95;
-        frameH = 2.7;
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       } else if (art.frameShape === 'circular') {
-        frameW = 2.2;
-        frameH = 2.2;
-        frameGeometry = new THREE.CylinderGeometry(frameW / 2, frameW / 2, 0.06, 48);
+        const diam = (frameW + frameH) / 2;
+        frameGeometry = new THREE.CylinderGeometry(diam / 2, diam / 2, 0.06, 48);
         frameGeometry.rotateX(Math.PI / 2);
       } else {
-        frameW = 2.0;
-        frameH = 2.7;
         frameGeometry = new THREE.BoxGeometry(frameW, frameH, 0.06);
       }
 
@@ -420,10 +452,19 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
         opacity: 1.0,
       });
 
-      const canvasMesh = new THREE.Mesh(frameGeometry, canvasMat);
+      // REQUIREMENT 19: Clone material to ensure absolute independence for every canvas
+      const clonedMat = canvasMat.clone();
+
+      const canvasMesh = new THREE.Mesh(frameGeometry, clonedMat);
       canvasMesh.castShadow = true;
       canvasMesh.receiveShadow = true;
-      canvasMesh.userData = { artworkIndex: index, artwork: art };
+      
+      // REQUIREMENT 5: Store unique database identity in userData
+      canvasMesh.userData = { 
+        artworkIndex: index, 
+        artwork: art,
+        artworkId: art.id 
+      };
       canvasMesh.position.z = 0.02;
       artGroup.add(canvasMesh);
 
@@ -493,7 +534,7 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
     // 7. Sunny Exit Pavilion at the end of the gallery corridor
     const exitSun = new THREE.PointLight('#ffd58c', 2.8, 25, 1.2);
-    exitSun.position.set(galleryLength + 10, 5, 0);
+    exitSun.position.set(lastX + 35, 5, 0);
     scene.add(exitSun);
 
     // Mouse Move Parallax & Raycast Listener (on container element, not window)
@@ -774,18 +815,22 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
       // 8d. Update Artworks: Permanent 100% Solid Canvases with Ambient Botanical Petals
       artworkObjects.forEach((item, idx) => {
-        // Update plaque DOM element directly
+        // Update plaque DOM element directly with proximity culling
         const plaque = plaquesRef.current[item.artwork.id];
         if (plaque) {
-          const vector = new THREE.Vector3(item.group.position.x, item.group.position.y - 1.8, item.group.position.z);
+          const distToCam = camera.position.distanceTo(item.group.position);
+          const isNear = distToCam < 7.0;
+          const vector = new THREE.Vector3(item.group.position.x, item.group.position.y - 1.7, item.group.position.z);
           vector.project(camera);
           
-          if (vector.z < 1) {
+          if (isNear && vector.z > 0 && vector.z < 1 && Math.abs(vector.x) < 0.85 && Math.abs(vector.y) < 0.85) {
             const x = (vector.x + 1) / 2 * (canvasContainerRef.current?.clientWidth || 0);
             const y = -(vector.y - 1) / 2 * (canvasContainerRef.current?.clientHeight || 0);
             plaque.style.left = `${x}px`;
             plaque.style.top = `${y}px`;
-            plaque.style.display = 'flex';
+            const opacity = Math.max(0, Math.min(1, (7.0 - distToCam) / 3.0));
+            plaque.style.opacity = `${opacity}`;
+            plaque.style.display = opacity > 0.05 ? 'flex' : 'none';
           } else {
             plaque.style.display = 'none';
           }
@@ -802,9 +847,10 @@ export const Gallery3D: React.FC<Gallery3DProps> = ({
 
         if (loadingPlaque) {
           if (isTexLoading) {
+            const distToCam = camera.position.distanceTo(item.group.position);
             const vector = new THREE.Vector3(item.group.position.x, item.group.position.y, item.group.position.z);
             vector.project(camera);
-            if (vector.z < 1) {
+            if (distToCam < 9.0 && vector.z > 0 && vector.z < 1) {
               const x = (vector.x + 1) / 2 * (canvasContainerRef.current?.clientWidth || 0);
               const y = -(vector.y - 1) / 2 * (canvasContainerRef.current?.clientHeight || 0);
               loadingPlaque.style.left = `${x}px`;

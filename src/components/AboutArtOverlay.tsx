@@ -28,9 +28,9 @@ export const AboutArtOverlay: React.FC<AboutArtOverlayProps> = ({
   // Calculate how squarely this canvas is kept in the viewer's frame (0.0 to 1.0)
   const galleryT = Math.max(0, Math.min(1, (scrollProgress - 0.14) / (0.88 - 0.14)));
   const rawPos = totalArtworks > 1 ? galleryT * (totalArtworks - 1) : 0;
-  const distFromCenter = Math.abs(rawPos - artworkIndex);
-  // inFrameRatio: 1.0 = squarely in the center of the frame, 0.0 = edge of frame / transitioning
-  const inFrameRatio = Math.max(0, Math.min(1, 1 - distFromCenter / 0.46));
+  // Proximity to the current camera stop for this active canvas
+  const distFromCenter = Math.abs(rawPos - Math.round(rawPos));
+  const inFrameRatio = Math.max(0.2, Math.min(1, 1 - distFromCenter / 0.48));
   const inFramePercent = Math.round(inFrameRatio * 100);
 
   // Responsive down-to-up vertical translation offset (in pixels)

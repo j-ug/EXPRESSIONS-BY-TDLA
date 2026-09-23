@@ -51,7 +51,7 @@ export const MobileHorizontalControls: React.FC<MobileHorizontalControlsProps> =
     }
   };
 
-  const currentArt = artworks[activeArtworkIndex] || artworks[0];
+  const currentArt = artworks[activeArtworkIndex];
 
   if (!currentArt) return null;
   return (

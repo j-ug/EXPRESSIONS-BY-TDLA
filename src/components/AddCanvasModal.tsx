@@ -7,6 +7,7 @@ interface AddCanvasModalProps {
   onClose: () => void;
   onAddCanvas?: (artwork: Omit<BotanicalArtwork, 'id'>) => void | Promise<void>;
   onAddArtwork?: (artwork: BotanicalArtwork) => void | Promise<void>;
+  initialOrder?: number;
 }
 
 const COLOR_PRESETS = [
@@ -23,6 +24,7 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
   onClose,
   onAddCanvas,
   onAddArtwork,
+  initialOrder = 1,
 }) => {
   const [title, setTitle] = useState('');
   const [tamilTitle, setTamilTitle] = useState('');
@@ -33,8 +35,8 @@ export const AddCanvasModal: React.FC<AddCanvasModalProps> = ({
   const [frameShape, setFrameShape] = useState<FrameShape>('rectangle');
   const [biasLightColor, setBiasLightColor] = useState('#608050');
   const [wallSide, setWallSide] = useState<'left' | 'right' | 'auto'>('auto');
-  const [viewOrder, setViewOrder] = useState<number>(1);
-  const [hallwayStation, setHallwayStation] = useState<number>(1);
+  const [viewOrder, setViewOrder] = useState<number>(initialOrder);
+  const [hallwayStation, setHallwayStation] = useState<number>(initialOrder);
   const [customImageData, setCustomImageData] = useState<string | undefined>(undefined);
   const [description, setDescription] = useState('');
   const [inspiration, setInspiration] = useState('');

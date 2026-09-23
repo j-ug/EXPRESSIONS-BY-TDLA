@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import { BotanicalArtwork, User } from '../types';
 import { replaceStoredArtworks } from '../utils/artworksStorage';
 import { deleteAllArtworks, deleteArtwork, updateArtwork, getArtworks, saveArtwork } from '../lib/artworks';
+import { invalidateArtworkTexture, clearTextureCache } from '../utils/textureGenerator';
+import { BOTANICAL_ARTWORKS } from '../data/artworks';
 import { EditArtworkModal } from './EditArtworkModal';
-import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, ArrowUp, ArrowDown, X } from 'lucide-react';
+import { Trash2, Edit2, Plus, ShieldAlert, Layers, Image as ImageIcon, Sparkles, ArrowUp, ArrowDown, X, RotateCcw } from 'lucide-react';
 
 interface AdminDashboardProps {
   artworks: BotanicalArtwork[];
@@ -48,6 +50,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally {
       try { onUpdateArtworks(replaceStoredArtworks(await getArtworks())); }
       catch { setError('Could not refresh the gallery. Reload before importing again.'); }
+      clearTextureCache();
       setImporting(false);
       event.target.value = '';
     }
@@ -60,6 +63,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     if (!window.confirm(`Are you sure you want to delete canvas "${title}"?`)) return;
     setDeleting(true);
     try {
+      invalidateArtworkTexture(id);
       await deleteArtwork(id);
       onUpdateArtworks(replaceStoredArtworks(artworks.filter((art) => art.id !== id)));
     } catch {
@@ -79,6 +83,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
     setDeleting(true);
     try {
+      clearTextureCache();
       await deleteAllArtworks();
       onUpdateArtworks(replaceStoredArtworks([]));
     } catch {
@@ -86,8 +91,16 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
     } finally { setDeleting(false); }
   };
 
+  const handleResetToDefaults = () => {
+    if (!window.confirm('Reset gallery cache to the 5 unique default botanical artworks? This will clear any stale textures and duplicate entries.')) return;
+    clearTextureCache();
+    const reset = replaceStoredArtworks(BOTANICAL_ARTWORKS);
+    onUpdateArtworks(reset);
+  };
+
   const handleSaveEdit = async (updatedArt: BotanicalArtwork) => {
     try {
+      invalidateArtworkTexture(updatedArt.id);
       updatedArt = await updateArtwork(updatedArt.id, updatedArt);
       const updated = artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art));
       onUpdateArtworks(replaceStoredArtworks(updated));
@@ -112,6 +125,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
       // Local copy remains updated
     }
   };
+
+  const sortedArtworksList = [...artworks].sort((a, b) => (a.viewOrder ?? 999) - (b.viewOrder ?? 999));
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-[#21160e]/70 backdrop-blur-md animate-fade-in overflow-y-auto">
@@ -151,13 +166,21 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
           </div>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6 p-4 rounded-2xl bg-[#f5ecdf] border border-[#dfd2c0]">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={onOpenAddCanvas}
               className="px-4 py-2 rounded-xl bg-[#2a6836] hover:bg-[#20512a] text-white text-xs font-semibold shadow-sm border border-[#3e844c] flex items-center gap-2 transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4" />
               <span>Add New Canvas (1 by 1)</span>
+            </button>
+            <button
+              onClick={handleResetToDefaults}
+              className="px-4 py-2 rounded-xl bg-[#f5ece0] hover:bg-[#ede0ce] text-[#5e4530] text-xs font-semibold shadow-sm border border-[#dfd2c0] flex items-center gap-2 transition-all cursor-pointer"
+              title="Reset gallery to 5 pristine default botanical specimens and purge texture cache"
+            >
+              <RotateCcw className="w-4 h-4 text-[#85582f]" />
+              <span>Reset 5 Originals</span>
             </button>
           </div>
 
@@ -175,7 +198,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
 
         {/* Canvases List */}
         <div className="flex-1 overflow-y-auto pr-1">
-          {artworks.length === 0 ? (
+          {sortedArtworksList.length === 0 ? (
             <div className="p-12 text-center border-2 border-dashed border-[#dfd2c0] rounded-2xl bg-[#faf6f0]">
               <Sparkles className="w-10 h-10 text-[#85582f] mx-auto mb-3 opacity-60" />
               <h3 className="font-serif text-xl text-[#2d1f14] mb-2">No Canvases in WebApp</h3>
@@ -192,7 +215,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">
-              {artworks.map((art, idx) => (
+              {sortedArtworksList.map((art, idx) => (
                 <div
                   key={art.id}
                   className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-2xl bg-[#fffefc] border border-[#ded0be] hover:border-[#bfa78f] shadow-sm transition-all"

@@ -15,6 +15,7 @@ import { BotanicalArtwork, GalleryState, User } from './types';
 import { galleryAudio } from './utils/audio';
 import { getCurrentUser, logoutUser, subscribeToAuth } from './utils/auth';
 import { getAllArtworks, replaceStoredArtworks } from './utils/artworksStorage';
+import { invalidateArtworkTexture, clearTextureCache } from './utils/textureGenerator';
 import { deleteArtwork, getArtworks, saveArtwork, updateArtwork } from './lib/artworks';
 import { incrementVisitorCount } from './lib/stats';
 
@@ -257,6 +258,7 @@ export default function App() {
     let updated: BotanicalArtwork[];
     {
       const saved = await saveArtwork(newArtwork);
+      invalidateArtworkTexture(saved.id);
       updated = replaceStoredArtworks([...artworks, saved]);
       setArtworks(updated);
       triggerNotification(`New canvas “${newArtwork.title}” mounted in gallery!`);
@@ -275,6 +277,7 @@ export default function App() {
   const performDeleteArtwork = async () => {
     const activeArt = artworks[galleryState.activeArtworkIndex];
     if (activeArt) {
+      invalidateArtworkTexture(activeArt.id);
       // Remove from Supabase
       await deleteArtwork(activeArt.id);
       // Remove from localStorage
@@ -286,6 +289,7 @@ export default function App() {
 
   const handleUpdateArtwork = async (updatedArt: BotanicalArtwork) => {
     if (!currentUser?.isAdmin) throw new Error('Administrator access is required.');
+    invalidateArtworkTexture(updatedArt.id);
     updatedArt = await updateArtwork(updatedArt.id, updatedArt);
     const updatedList = replaceStoredArtworks(
       artworks.map((art) => (art.id === updatedArt.id ? updatedArt : art))
@@ -298,7 +302,7 @@ export default function App() {
     triggerNotification(`Updated price & details for “${updatedArt.title}”!`);
   };
 
-  const activeArtwork = artworks[galleryState.activeArtworkIndex] || artworks[0];
+  const activeArtwork = artworks[galleryState.activeArtworkIndex];
 
   return (
     <div className="relative min-h-screen bg-[#f7f2eb] text-[#2d1f14] selection:bg-[#dfcdb9] selection:text-[#23180f]">
@@ -425,11 +429,14 @@ export default function App() {
       />
 
       {/* Admin Add Canvas Modal */}
-      <AddCanvasModal
-        isOpen={addCanvasModalOpen && currentUser?.isAdmin === true}
-        onClose={() => setAddCanvasModalOpen(false)}
-        onAddArtwork={handleAddCanvas}
-      />
+      {addCanvasModalOpen && currentUser?.isAdmin === true && (
+        <AddCanvasModal
+          isOpen={true}
+          onClose={() => setAddCanvasModalOpen(false)}
+          onAddArtwork={handleAddCanvas}
+          initialOrder={artworks.length + 1}
+        />
+      )}
 
       <ConfirmationModal
         isOpen={deleteConfirmationOpen}

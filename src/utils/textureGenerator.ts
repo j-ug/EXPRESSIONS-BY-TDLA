@@ -4,13 +4,41 @@ import * as THREE from 'three';
 const textureCache = new Map<string, THREE.CanvasTexture>();
 
 /**
+ * Invalidate cached texture for a specific artwork (e.g. when image or details change)
+ */
+export function invalidateArtworkTexture(artworkId: string): void {
+  for (const [key, tex] of textureCache.entries()) {
+    if (key.startsWith(`${artworkId}_`) || key === artworkId) {
+      tex.dispose();
+      textureCache.delete(key);
+    }
+  }
+}
+
+/**
+ * Clear all cached textures
+ */
+export function clearTextureCache(): void {
+  for (const tex of textureCache.values()) {
+    tex.dispose();
+  }
+  textureCache.clear();
+}
+
+/**
  * Creates a high-resolution procedural botanical artwork texture
  */
-export function createArtworkTexture(theme: string, customImageData?: string): THREE.CanvasTexture {
-  // Generate a robust unique cache key that prevents collision between different custom images
-  const cacheKey = customImageData
-    ? `custom_${customImageData.length}_${customImageData.slice(25, 85)}_${customImageData.slice(Math.floor(customImageData.length / 2), Math.floor(customImageData.length / 2) + 60)}_${customImageData.slice(-60)}`
-    : theme;
+export function createArtworkTexture(theme: string, customImageData?: string, artworkId?: string): THREE.CanvasTexture {
+  // Generate a distinct unique cache key ensuring zero cross-artwork collisions
+  let imageSig = 'none';
+  if (customImageData && customImageData.length > 10) {
+    const len = customImageData.length;
+    imageSig = `${len}_${customImageData.slice(0, 32)}_${customImageData.slice(-32)}`;
+  }
+  const cacheKey = artworkId
+    ? `${artworkId}_${theme}_${imageSig}`
+    : (customImageData ? `custom_${imageSig}` : `theme_${theme}`);
+
   if (textureCache.has(cacheKey)) {
     return textureCache.get(cacheKey)!;
   }
@@ -211,7 +239,7 @@ function renderPeepalTheme(ctx: CanvasRenderingContext2D) {
   // Lateral secondary veins
   for (let i = -14; i <= 14; i++) {
     const yPos = i * 22;
-    const side = i % 2 === 0 ? 1 : -1;
+    const side = (i & 1) === 0 ? 1 : -1;
     const length = Math.max(30, 220 - Math.abs(i) * 14);
 
     ctx.beginPath();
@@ -227,7 +255,8 @@ function renderPeepalTheme(ctx: CanvasRenderingContext2D) {
       const vy = yPos - 25 * (j / 6);
       ctx.beginPath();
       ctx.moveTo(vx, vy);
-      ctx.lineTo(vx + (side * 12), vy + (j % 2 === 0 ? 10 : -10));
+      const vOffset = (j & 1) === 0 ? 10 : -10;
+      ctx.lineTo(vx + (side * 12), vy + vOffset);
       ctx.strokeStyle = 'rgba(230, 220, 160, 0.35)';
       ctx.lineWidth = 0.9;
       ctx.stroke();
@@ -501,7 +530,7 @@ function renderGulmoharTheme(ctx: CanvasRenderingContext2D) {
   // Draw 8 large pressed petals
   for (let i = 0; i < 8; i++) {
     const angle = (i * Math.PI * 2) / 8 + 0.2;
-    const dist = 120 + (i % 2) * 50;
+    const dist = 120 + (i & 1) * 50; // Removed % 2 logic
     const px = Math.cos(angle) * dist;
     const py = Math.sin(angle) * dist;
 
