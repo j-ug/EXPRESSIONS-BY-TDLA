@@ -124,26 +124,9 @@ export function createArtworkTexture(theme: string, customImageData?: string, ar
       ctx.shadowOffsetX = 0;
       ctx.shadowOffsetY = 0;
 
-      const imgW = img.naturalWidth || img.width || 1024;
-      const imgH = img.naturalHeight || img.height || 1024;
-      const imgAspect = imgW / imgH;
-
-      // Fit sharply on canvas with minimal edge margin
-      const maxDim = 1024;
-      let drawW = maxDim;
-      let drawH = maxDim;
-
-      if (imgAspect > 1) {
-        drawH = Math.round(maxDim / imgAspect);
-      } else {
-        drawW = Math.round(maxDim * imgAspect);
-      }
-
-      const drawX = Math.round((1024 - drawW) / 2);
-      const drawY = Math.round((1024 - drawH) / 2);
-
-      // Draw pure sharp original image
-      ctx.drawImage(img, drawX, drawY, drawW, drawH);
+      // REQUIREMENT: Fill entire 1024x1024 canvas.
+      // We rely on the 3D frame geometry's aspect ratio to "unstretch" this to original proportions.
+      ctx.drawImage(img, 0, 0, 1024, 1024);
 
       texture.needsUpdate = true;
       texture.isLoading = false;

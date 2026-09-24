@@ -43,16 +43,24 @@ export default function App() {
 
   // Supabase is authoritative; local storage is only an offline render cache.
   useEffect(() => {
-    void incrementVisitorCount();
-    const loadArtworks = async () => {
+    const loadData = async () => {
       try {
+        // Try to increment visitor count if supabase is ready
+        void incrementVisitorCount().catch(console.error);
+        
         const remote = await getArtworks();
         setArtworks(replaceStoredArtworks(remote));
+        
+        // If we got here but Supabase is not configured, we are in "Offline/Preview Mode"
+        if (!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY) {
+          console.info('Gallery is running in Preview Mode (LocalStorage only). Configure Supabase for cloud persistence.');
+        }
       } catch (e) {
-        setLoadError(e instanceof Error ? e.message : 'Gallery service is unavailable. Showing cached content.');
+        const msg = e instanceof Error ? e.message : 'Gallery service is unavailable.';
+        setLoadError(`${msg} - Please check your connection or environment variables.`);
       }
     };
-    void loadArtworks();
+    void loadData();
   }, []);
 
   useEffect(() => subscribeToAuth(setCurrentUser), []);

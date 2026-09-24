@@ -11,6 +11,7 @@ export interface GalleryStats {
  * Usually called once per session.
  */
 export async function incrementVisitorCount(): Promise<void> {
+  if (!supabase) return;
   const client = getSupabase();
   const { error } = await client.rpc('increment_visitor_count');
   if (error) {
@@ -22,6 +23,7 @@ export async function incrementVisitorCount(): Promise<void> {
  * Fetches the current total visitor count.
  */
 export async function getTotalVisitors(): Promise<number> {
+  if (!supabase) return 0;
   const client = getSupabase();
   const { data, error } = await client
     .from('gallery_stats')
